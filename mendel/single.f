@@ -26,7 +26,7 @@ C     DEFAULT VALUES FOR THE PROBLEM MENU.
 C
       DATA TITLE,LOCFIL/'TP53_data','locusbr.dat'/
       DATA PEDFIL,OUTFIL/'pedigree.txt','single_out.dat'/
-      DATA ECHO,XXSIGN,XYSIGN,NVAR/.FALSE.,'F','M',7/
+      DATA ECHO,XXSIGN,XYSIGN,NVAR/.FALSE.,'F','M',2/
       DATA EXTRA/100*0.0D0/
       DATA LNAME/'MAJOR',9*' '/
       DATA MUTLOC,XXRATE,XYRATE,COND/' ',0.0d0,0.0d0,2/
