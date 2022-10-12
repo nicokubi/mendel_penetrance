@@ -1,0 +1,33 @@
+The mendel document file: "mendel_document.txt" explains MENDEL and file format in details.
+
+Two types of genetic susceptibility models were included here:
+
+1) single gene model: assumes all familial aggregation of cancer is due to one single gene
+   Examples:
+    -code file: single.f
+    -pedigree file: pedigree.txt
+    -locus file: locusbr.dat
+
+   To compile, please run:
+   $ gfortran -O3 mendela.f single.f -o single.exe
+   which will generate an executable file called "single.exe"
+
+   To execute, run:
+   $ ./single.exe
+
+   The result is saved in single_out.dat 
+
+2) mixed single-gene/polygenic model: this also allows for a residual familial component due to other unobserved genetic effects in addition to the major gene.
+   Examples:
+    -code file: poly.f
+    -pedigree file: pedigree_poly.txt
+    -locus file: locus3.dat
+
+   To compile, please run:
+   $ gfortran -O3 mendela.f poly.f -o poly.exe
+   which will generate an executable file called "poly.exe"
+
+   To execute, run:
+   $ ./poly.exe
+
+   The result is saved in poly_out.dat 

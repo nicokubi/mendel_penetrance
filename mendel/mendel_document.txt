@@ -1,0 +1,2125 @@
+		
+		Documentation for MENDEL, Version 3.3
+
+	       (c) Copyright Kenneth Lange, 1985-1993
+
+
+			  Introduction
+
+
+     MENDEL is a Fortran 77 program for the genetic analysis of human
+pedigree data.  It performs likelihood calculations for models involving
+a small number of loci;  the companion program FISHER is designed for
+the analysis of polygenic models.  MENDEL will be useful for segregation
+analysis, linkage calculations, genetic counseling, and related kinds of
+problems.  Perhaps, it would better to think of MENDEL as a collection
+of programs for genetic analysis.  A common framework is provided for
+users to develop their own applications.  We give several explicit
+examples to illustrate some of the possibilities.  For geneticists who
+do not want to pursue the finer points of modeling, these sample
+programs are immediately applicable.
+     The main features of MENDEL are fairly easy to sketch.  Input to
+the program takes three forms.  First, a locus file must be provided by
+the user.  This file describes each locus in the associated pedigree
+data.  Each locus has a name, a certain number of alleles, and a certain
+number of phenotypes.  The alleles have names and population
+frequencies.  The phenotypes have names and associated genotypes.  The
+pedigree file consists of a collection of pedigrees.  Information must
+be provided for each individual about his/her parents, sex, identical
+twin status, phenotypes at the loci of the locus file, and possibly
+about observed quantitative variables like age or lipid levels.
+Finally, users can interactively input some problem specifications via a
+simple menu.  This last phase of the input can be also be done in batch
+mode so that MENDEL can be run in background.  The output of MENDEL is
+routed to a designated output file.  In some cases, well placed print
+statements can display partial output information on the screen.
+     On IBM PC's and compatibles, the companion program dGENE will take
+most of the sting out of setting up pedigree and locus files.  The dBASE
+system which dGENE ties into provides a clean, flexible means of
+managing small to intermediate size genetic databases.  If you intend to
+use dGENE, you may want to read its documentation before reading the next
+two sections on the pedigree and locus files.
+     Although we strongly discourage modifying the great bulk of MENDEL,
+we have purposely split off certain designated subroutines into user
+subprograms.  These provide for flexibility in genetic modeling and can
+be profitably changed.  The user subroutines define penetrances, prior
+probabilities of genotypes, and the transmission probabilities from
+parental genotypes to gamete genotypes.  There are also user subroutines
+for modifying the likelihood of individual pedigrees, defining parameter
+specifications, and increasing program array dimensions.
+     Besides the present documentation users can consult the papers by
+Lange and Elston(1975), Lange and Boehnke(1983), Lange and Goradia(1987),
+and Goradia et al.(1991) for theoretical background material.  They
+address issues such as graphical representation of pedigrees, systematic
+elimination of genotypes based on phenotypes of all pedigree members, and
+correct and optimal calculation of genetic likelihoods.  Many of these
+ideas are implemented in MENDEL.  Conneally and Rivas(1980) and
+Elston(1981) furnish good general references for modern linkage and
+segregation analysis techniques.  Books with enlightening material
+include Cavalli-Sforza and Bodmer(1971), Crow and Kimura(1970), Elandt-
+Johnson(1971), Morton et al.(1983), Murphy and Chase(1975), Ott(1991),
+and Thompson(1986).
+
+			 The Pedigree File
+
+
+     The pedigree file contains records for pedigrees and records for
+individuals within these pedigrees.  A pedigree record specifies the
+number of people in a pedigree and an ID for the pedigree.  IDs need not
+be unique and may be left blank.  An ID can have a maximum of eight
+characters.  After a pedigree record comes the individual records for
+each person in the pedigree.  Each individual record provides an
+individual ID, the IDs of the individual's parents if present in the
+pedigree, his/her sex, identical twin status, and all his/her relevant
+phenotypes and quantitative variables.  The order of these items is
+fixed.  Note that both MENDEL and FISHER maintain a careful distinction
+between the quantitative variables observed on each individual and the
+parameters characterizing a model.
+     The term pedigree has certain technical connotations.  To
+reconstruct the relationships between individuals properly, often people
+must be included who are dead or otherwise unavailable for study.  One
+rule is important to keep in mind.  Either both parents or neither
+parent of a person must be listed in the pedigree.  Those people without
+parents in the pedigree can be thought of as founders of the pedigree.
+MENDEL is actually general enough to compute likelihoods correctly if
+completely separate pedigrees are designated as a single pedigree.  In
+practice it is confusing and slightly wasteful of computer storage to
+amalgamate pedigrees.  Also avoid amalgamation if likelihoods need to be
+modified pedigree by pedigree.  This is the case in genetic counseling
+problems and with ascertainment corrections.
+     Preceding the pedigree and individual records there should be two
+Fortran format records for reading in the data.  The first format record
+tells how to read the pedigree records.  It should consist of an integer
+format (I) for reading the number of individuals in a pedigree and a
+character format (A) for reading the pedigree ID.  (I2,A8) gives a
+typical example of this format record.
+     The second format record directs the reading of the individual
+records.  One of our later sample problems on paternity testing provides
+a simple example of a pedigree file.  For the sake of discussion we have
+added a quantitative variable, age, for each person in the file.
+
+(I2,A8)
+(3A8,2A1,1X,A2,1X,A5,A3)
+3
+ACCUSED                 M  B  1-2  25.
+MOTHER                  F  AB 1-1  23.
+CHILD   ACCUSED MOTHER  F  B  1-2  1.
+4
+RANDOM                  M
+MOTHER                  F  AB 1-1  23.
+CHILD   RANDOM  MOTHER  F  B  1-2  1.
+ACCUSED                 M  B  1-2  25.
+End of File Symbol
+
+     In this example the person ID and parental IDs are read in A8
+format.  Naming pedigrees is optional.  Here the names are simply left
+blank.  Although the mother is listed as the second parent in each
+pedigree, there is no requirement that the first parent be the father
+and the second parent the mother.  Sex and MZ twin status are read in A1
+format, ABO phenotype in A2 format, PGM1 phenotype in A5 format, and age
+in A3 format.  The 1X format allows skipping one space between reading
+two fields.  As is evident in this example, all items or fields on an
+individual record should be read in character format (A) and consist of
+eight characters or fewer.  This includes all quantitative variables.
+Missing values for any field are represented by blanks.  Internal to 
+MENDEL there is a missing value code that is assigned to missing 
+quantitative variables.  Note that quantitative variables, if any, must 
+occupy the rightmost fields in the individual record.
+     Two people in a pedigree obviously cannot share an ID.  People from
+different pedigrees can.  In the above example we have used an 'F' for
+female and 'M' for male.  Other sex codes could be substituted if they
+are properly coordinated with the corresponding menu item.  The MZ twin
+field is left blank in this example because no one is an identical twin.
+If there are identical twins in a pedigree, then each pair of them
+should be assigned a unique non-blank identifier.  Our sample problem
+for determining twin zygosity furnishes an example.  Identical triplets
+can be handled in the same way.
+     Finally, the pedigree file must end with some kind of end of file
+symbol.  On some computers, IBM PCs for example, this is automatically
+done, and the symbol is invisible.  On other computers there is a
+visible or partially visible symbol.  All Fortran 77 compilers have an
+ENDFILE command if it is necessary to produce the end of file symbol.
+
+
+			 The Locus File
+
+
+     The locus file contains information describing the genetic loci
+involved in a problem or sequence of problems done in a single run of
+MENDEL.  The sample locus file below includes two loci, ABO and L128.
+
+
+ABO     AUTOSOME 3 4
+A       .28
+B       .06
+O       .66
+A        2
+A/A
+A/O
+B        2
+B/B
+B/O
+AB       1
+A/B
+O        1
+O/O
+L128    X-LINKED 2 3
+1       .65
+2       .35
+1        1
+1/1
+2-1      1
+2/1
+2        1
+2/2
+End of File Symbol
+
+
+     Inspection of this example shows that data on the loci are provided
+one locus at a time with the following records required for each locus:
+
+1. Locus identifier record in (2A8,2I2) format specifying
+   a. Locus name
+   b. AUTOSOME or X-LINKED, depending on whether the locus is autosomal
+      or X-linked
+   c. Number of alleles
+   d. Number of phenotypes
+
+2. For each allele a record in (A8,F8.5) format specifying
+   a. Allele name
+   b. Allele population frequency
+
+3. For each phenotype a record in (A8,I2) format specifying
+   a. Phenotype name
+   b. Number of genotypes associated with the phenotype
+
+4. Following a phenotype record are records in (A17) format specifying
+   associated genotypes.  Each genotype is denoted by its two allele
+   names separated by a slash.  Because of this convention the slash
+   character should not be part of an allele name.
+
+     Implicit in the above conventions is the assumption that phenotype
+penetrances are either 0. or 1.  This is true when a genotype always
+gives rise to the same qualitative phenotype.  Disease genes with
+incomplete penetrance must be handled in a different manner.  For
+instance, the results of carrier detection tests should be input as
+quantitative variables in the pedigree file.  In certain problems, no
+phenotypes at all will be attached to a locus;  only those phenotypes
+appearing in the paired pedigree file are really necessary.  However, at
+least one allele should always be listed for each locus.  MENDEL
+produces a warning if allele frequencies for a locus do not sum to 1.
+     The second locus in the above example is X-linked.  It is important
+to note that no special symbols are necessary for male phenotypes.  If a
+listed phenotype is appropriate for both females and males, only the
+associated homozygous genotypes will be assigned to a male with this
+phenotype.  Internally, MENDEL identifies hemizygous genotypes with the
+corresponding homozygous genotypes.  If a phenotype is intended only for
+males, then the associated genotypes should still be given in the
+homozygous form for the locus file.
+     The locus file and the pedigree file must be coordinated in the
+sense that the phenotype fields for individuals must match exactly the
+order of the loci in the locus file.  Thus, a pedigree file appropriate
+to the above locus file would have ABO and L128 phenotypes as items six
+and seven on each individual record.  No other phenotypes would be
+expected or allowed.
+     For a locus with many codominant alleles, it is cumbersome to list
+a large number of phenotypes in the locus file.  As a matter of
+convenience, genotypes can be substituted for phenotypes in the pedigree
+file.  For instance, at the ABO locus the genotype A/B can substituted
+for the phenotype AB wherever it appears in the pedigree file.  If this
+is done, MENDEL will identify the two constituent alleles A and B on
+either side of the slash and check that these are among the possible
+alleles in the locus file.  Provided all people of phenotype AB are
+listed as A/B in the pedigree file, the phenotype AB can then be omitted
+from the locus file.  Note that two restrictions remain in effect.
+Males at an X-linked locus must always be assigned a homozygous biallelic
+genotype, and all genotypes substituted for phenotypes in the pedigree
+file must occupy eight characters or fewer.
+
+
+			 The Menu
+
+
+     Part of the user interface with MENDEL is a simple menu that
+permits some changes in program operation without recompilation.  Almost
+all choices on the menu can be set to default values by the user.  This
+means that only a few items need be changed in a typical run of MENDEL.
+A sample menu from a version of MENDEL called USERM1 appears below.
+
+  0 PROBLEM NUMBER                     1                                      
+  1 TITLE                              ALLELE FREQUENCY ESTIMATION            
+  2 LOCUS FILE                         LOCUSM1.DAT                            
+  3 PEDIGREE FILE                      PEDM1.DAT                              
+  4 OUTPUT FILE                        OUTM1.DAT                              
+  5 ECHO LOCUS AND PEDIGREE FILES      YES                                    
+  6 FEMALE AND MALE SYMBOLS            F       M                              
+  7 NUMBER OF QUANTITATIVE VARIABLES   1                                      
+  8 EXTRA CONSTANTS FOR PROBLEM        0.00E+0 0.00E+0                        
+  9 NAMES OF LOCI IN PROBLEM           ABO                                    
+ 10 NAME OF MUTABLE LOCUS IN PROBLEM                                          
+ 12 PEDIGREE TO CONDITION ON           0                                      
+ 13 BASE FOR LOGLIKELIHOODS            E                                      
+ 14 STANDARDIZE LOGLIKELIHOODS         NO                                     
+ 15 GRID OR SEARCH OPTION              SEARCH                                 
+ 17 NUMBER OF PARAMETERS               3                                      
+ 18 NUMBER OF CONSTRAINTS              1                                      
+ 19 ASYMPTOTIC STANDARD ERRORS         YES                                    
+ 20 MAXIMUM NUMBER OF ITERATIONS       100                                    
+
+     All the items above were given default values in the main routine
+of USERM1.  When this program is run, the menu appears on the computer
+screen, and the user is asked to choose one of the item numbers.  For
+some items, number 5 for instance, typing an item number triggers an
+immediate response, and the item is changed to its alternative value.
+Other items demand input from the user to effect a change in value.  Not
+all items will appear on the screen at one time.  Items 11 and 16 are
+missing.  Item 11 asks for male and female mutation rates.  These are
+only relevant if one of the loci in the current problem is designated as
+mutable.  Item 16 asks for the number of grid points when the grid option
+is chosen.  MENDEL either performs a search on all parameters or
+evaluates likelihoods over a user defined grid of points in parameter
+space.  When the search option is chosen, linear equality constraints can
+be imposed on the parameters and their asymptotic standard errors
+computed at the maximum likelihood estimates.  In our discussion of the
+OUTPUT subroutine, we show how the grid and search options can be
+overridden when you want to implement other techniques for sampling or
+searching a likelihood surface.
+     Some of the other menu items are worth commenting on.  Within a
+single run of MENDEL, multiple problems can be worked using the same
+locus and pedigree data.  All problems must be defined via the menu
+before any of them are done by MENDEL.  Item 0 displays the number of
+the current problem being specified.  After problem 1 the menu items
+concerning data entry disappear.  Item 21 queries whether you wish to
+accept the problem as defined by the current menu choices.  If you
+accept a problem, you are then asked whether you wish to set up another
+problem in the current run.
+     Item 8 displays the first five of whatever extra constants the user
+requires in a particular problem.  Extra constants can be quantities
+like means and variances for carrier detection tests.  In general, the
+distinction between these numbers and parameters is that parameters are
+estimated.  Users who want to program their own applications will also
+find the extra array, named appropriately EXTRA, a convenient device for
+passing information back and forth between the different subroutines of
+MENDEL.  
+     Item 9 asks for the names of the loci in the current problem.  In
+multiple locus linkage analysis, the order of the loci listed in this
+item reflects the presumed order of the loci along a chromosome.  By
+varying this order from problem to problem, the odds favoring the
+various orders can be evaluated.
+     Item 12 is intended for genetic counseling problems.  Risks can be
+viewed as conditional probabilities.  In computing a genetic risk one
+must compute two likelihoods.  The denominator likelihood is computed
+with the riskee having an unspecified phenotype at the disease locus.
+The numerator likelihood is computed with the riskee having the at-risk
+phenotype.  MENDEL demands two separate pedigrees, the numerator
+pedigree and the denominator pedigree.  Item 12 tells which pedigree is
+the denominator pedigree.  Please note that special code must be present
+in subroutine NEWLIK to invoke this genetic counseling option.  See our
+description of subroutine NEWLIK for further details.  If your problem
+involves mutation, also read the description of subroutine ATRANS to
+make certain that you are correctly allowing for mutation. 
+     Item 14 asks whether all likelihoods in a problem should be
+standardized by the first likelihood.  This is usually done in linkage
+analysis when all loglikelihoods are standardized by the loglikelihood
+at free recombination.  In other kinds of analyses this can be an easy
+way of arranging a likelihood ratio test.
+     All other items are defined in the dictionary provided for the
+variables of MENDEL.  This dictionary is divided into two parts.  The
+first part contains variable definitions.  The second part lists
+variable type (double precision, integer, logical, or character), class
+(scalar or array), dimensions (for arrays), and corresponding menu
+number if appropriate.
+     On some computers it is possible to run MENDEL in batch mode.  All
+that needs to be done is to alert MENDEL to the fact that responses to
+the menu queries will be read from a batch file.  In the main routine of
+any user program there is a variable BATFIL.  To run in interactive mode
+this character string should be blank.  If it is not blank, then it
+should contain the name of the file from which menu choices will be made.       
+The file BATCH.DAT in the MENDEL directory gives a typical example
+coordinated with USERM7.  The item choices and responses in BATCH.DAT
+exactly simulate how you might make screen choices and responses.  One
+choice or response appears per line of BATCH.DAT.  Typing of a return on
+the screen without entering data corresponds to a blank line of
+BATCH.DAT.  In interactive mode, you are also given at the last moment
+the chance to switch to batch mode by naming an appropriate batch file.
+
+
+			Typical Output of MENDEL
+
+
+     The sample output below is also contained in the file OUTM1.DAT.
+Note that the locus and pedigree files are beautified and echoed in this
+output file for allele frequency estimation.  The pedigree file consists
+of a sequence of isolated individuals representing the various
+phenotypes at the ABO locus.
+
+ LOCUS ABO      AUTOSOME   3 ALLELES   4 PHENOTYPES
+ ALLELE NAMES AND FREQUENCIES
+      A           .28000  
+      B           .06000  
+      O           .66000  
+ PHENOTYPES
+      A         2 GENOTYPES
+	A/A              
+	A/O              
+      B         2 GENOTYPES
+	B/B              
+	B/O              
+      AB        1 GENOTYPES
+	A/B              
+      O         1 GENOTYPES
+	O/O              
+
+ FORMATS FOR INPUT OF PEDIGREE DATA:
+ (I2,A8)                                                                       
+ (6A2,A5)                                                                      
+
+ PEDIGREE   1 HAS   1 PEOPLE AND PEDIGREE ID         
+
+      ID       PARENT   IDS      SEX      TWIN     ABO      VAR 1   
+   1  P1                         F                 A        182.    
+
+ PEDIGREE   2 HAS   1 PEOPLE AND PEDIGREE ID         
+
+      ID       PARENT   IDS      SEX      TWIN     ABO      VAR 1   
+   1  P2                         F                 AB       17.     
+
+ PEDIGREE   3 HAS   1 PEOPLE AND PEDIGREE ID         
+
+      ID       PARENT   IDS      SEX      TWIN     ABO      VAR 1   
+   1  P3                         F                 B        60.     
+
+ PEDIGREE   4 HAS   1 PEOPLE AND PEDIGREE ID         
+
+      ID       PARENT   IDS      SEX      TWIN     ABO      VAR 1   
+   1  P4                         F                 O        176.    
+
+ TOTALS:  PEDIGREES   PEOPLE  FEMALES    MALES  MZTWINS FOUNDERS
+		 4        4        4        0        0        4
+ 
+  0 PROBLEM NUMBER                     1                                      
+  1 TITLE                              ALLELE FREQUENCY ESTIMATION            
+  2 LOCUS FILE                         LOCUSM1.DAT                            
+  3 PEDIGREE FILE                      PEDM1.DAT                              
+  4 OUTPUT FILE                        OUTM1.DAT                              
+  5 ECHO LOCUS AND PEDIGREE FILES      YES                                    
+  6 FEMALE AND MALE SYMBOLS            F       M                              
+  7 NUMBER OF QUANTITATIVE VARIABLES   1                                      
+  8 EXTRA CONSTANTS FOR PROBLEM        .00     .00                            
+  9 NAMES OF LOCI IN PROBLEM           ABO                                    
+ 10 NAME OF MUTABLE LOCUS IN PROBLEM                                          
+ 12 PEDIGREE TO CONDITION ON           0                                      
+ 13 BASE FOR LOGLIKELIHOODS            E                                      
+ 14 STANDARDIZE LOGLIKELIHOODS         NO                                     
+ 15 GRID OR SEARCH OPTION              SEARCH                                 
+ 17 NUMBER OF PARAMETERS               3                                      
+ 18 NUMBER OF CONSTRAINTS              1                                      
+ 19 ASYMPTOTIC STANDARD ERRORS         YES                                    
+ 20 MAXIMUM NUMBER OF ITERATIONS       100                                    
+
+ PARAMETER MINIMA AND MAXIMA:
+
+    ALLELE 1    ALLELE 2    ALLELE 3
+
+   .1000D-05   .1000D-05   .1000D-05
+
+   .1000D+21   .1000D+21   .1000D+21
+
+ PARAMETER CONSTRAINTS:
+
+    CVALUE      ALLELE 1    ALLELE 2    ALLELE 3
+
+   .1000D+01   .1000D+01   .1000D+01   .1000D+01
+
+ ITER  NSTEP  LOGLIKELIHOOD    ALLELE 1    ALLELE 2    ALLELE 3
+
+   1     0    -.7749236D+01   .2800D+00   .6000D-01   .6600D+00
+
+   2     2    -.1084457D+01   .2677D+00   .1013D+00   .6310D+00
+
+   3     2    -.1014984D+01   .2620D+00   .1011D+00   .6369D+00
+
+   4     1    -.7213504D+00   .2644D+00   .9378D-01   .6418D+00
+
+   5     0    -.7195035D+00   .2645D+00   .9312D-01   .6424D+00
+
+   6     0    -.7194928D+00   .2644D+00   .9317D-01   .6424D+00
+
+   7     0    -.7194928D+00   .2644D+00   .9317D-01   .6424D+00
+
+   8     0    -.7194928D+00   .2644D+00   .9317D-01   .6424D+00
+
+   9     0    -.7194928D+00   .2644D+00   .9317D-01   .6424D+00
+
+ THE MAXIMUM LOGLIKELIHOOD OCCURS AT ITERATION   9.
+
+ THE LIKELIHOOD RATIO STATISTIC FOR HARDY-WEINBERG EQUILIBRIUM
+ IS   1.4390.
+
+ THE FRACTION 0F HETEROZYGOTES AT THE LOCUS IS .5087.  IF IT IS AN
+ AUTOSOMAL CODOMINANT, ITS POLYMORPHISM INFORMATION CONTENT IS .4426.
+
+ ASYMPTOTIC STANDARD ERRORS OF THE PARAMETERS:
+
+    ALLELE 1    ALLELE 2    ALLELE 3
+
+   .1625D-01   .1012D-01   .1762D-01
+
+ ASYMPTOTIC CORRELATION MATRIX OF THE PARAMETERS:
+
+    ALLELE 1    ALLELE 2    ALLELE 3
+
+   .1000D+01
+
+  -.1705D+00   .1000D+01
+
+  -.8244D+00  -.4172D+00   .1000D+01
+
+
+			 Subroutines of MENDEL
+
+
+     Before discussing each subroutine in detail let us make some
+general comments pertaining to all of them.  First, do not be
+intimidated by MENDEL.  We hope users will experiment and adapt MENDEL
+to their own applications.  The subroutines are written in a style to
+encourage creative modification.  This is not to imply that MENDEL is a
+simple, immediately transparent program.  It is not.  To modify it takes
+skill in Fortran, knowledge of genetics, and experience with statistical
+modeling.  But there are steps that can improve your understanding of
+MENDEL.  Read the descriptions of the subroutines, consult the
+dictionary of variable names, and experiment.  Insert a print statement
+here and there to see how the program operates.  The subroutines often
+keep track of the individual and pedigree currently being addressed.  To
+avoid massive output, print out variables for a particular person and
+pedigree.  Run the program in the grid mode with a single grid point.
+Keep in mind that there are only a few well defined places where
+variables can be initialized.  Changing a variable like GENES in
+subroutine ATRANS will lead to disastrous results.  Most variables
+provide information only and should not be modified.  On the other hand,
+the arrays PEN, PRIOR, and TRANS in the corresponding subroutines APEN,
+APRIOR, and ATRANS must always be defined. 
+
+1. Main Routine
+
+     Possible reasons for modifying the main routine are to increase
+array sizes, to set the defaults for menu items, and to switch MENDEL
+from interactive mode to batch mode.  For example, on complicated
+pedigrees with little phenotyping you might receive an error message
+stating that RARRAY is too small.  RARRAY provides the space for all
+double precision arrays internal to MENDEL.  To increase the size of
+RARRAY, say from 10000 to 20000, you must change LENR from 10000 to
+20000 in the PARAMETER statement at the top of the routine.  We
+recommend that you try doubling the size of an array when MENDEL needs
+more space.  This may not always be possible on a microcomputer.  Note
+that compute times will be strongly correlated with array sizes.  Up to 
+a point, the more RARRAY space you give MENDEL, the faster it will run.  
+This enhanced speed is particularly noticeable in GRID mode with many 
+grid points.  
+     You probably will encounter pedigrees too complicated to process.  
+These will occur when many people are untyped in the pedigree, when there 
+is substantial inbreeding in the pedigree, or when the loci have many
+alleles.  Sometimes you can remedy matters by typing more people,
+modifying the pedigree, or renaming and reducing the number of alleles.
+As described below, reducing the number of alleles in a pedigree can be 
+carried out automatically in MENDEL by setting the variable LUMP to TRUE. 
+If you modify a pedigree manually, this may or may not lead to disastrous 
+changes in likelihoods.  Use your common sense.  
+     To convert menu items just change the appropriate data statements.
+Switching to batch mode has been explained in our discussion of the
+menu.  The main routine for the version of MENDEL called USERM1 is
+presented below.
+
+C
+C     ARRAY AND VARIABLE DECLARATIONS.
+C
+      PARAMETER(LENC=100,LENI=5000,LENL=100,LENR=10000,MXLOCI=10
+     :,NEXTRA=2)
+      IMPLICIT DOUBLE PRECISION(A-H,O-Z)
+      DOUBLE PRECISION EXTRA(NEXTRA),RARRAY(LENR)
+      INTEGER IARRAY(LENI),COND
+      CHARACTER*8 CARRAY(LENC),LNAME(MXLOCI),BASE,BATFIL*40,LOCFIL*40
+     :,MUTLOC,OUTFIL*40,PEDFIL*40,TITLE*40,TRAVEL,XXSIGN,XYSIGN
+      LOGICAL LARRAY(LENL),ASYCV,ECHO,LUMP,ORDERD,PMODE,STAND
+C
+C     DEFAULT VALUES FOR SOME VARIABLES.  TO RUN THE PROGRAM IN
+C     BATCH MODE FILL IN THE NAME OF THE BATCH FILE BATFIL.  SET
+C     PMODE TO TRUE TO DO CALCULATIONS IN PRODUCT MODE AND LUMP
+C     TO TRUE TO AMALGAMATE ALLELES AT EACH LOCUS. 
+C
+      DATA MXTWIN,ABSENT/10,-1.0D20/
+      DATA CONV,NCONV,MXSTEP,DP/1.0D-4,4,3,1.0D-7/
+      DATA BATFIL,LUMP,ORDERD,PMODE/' ',.FALSE.,.FALSE.,.FALSE./
+C
+C     DEFAULT VALUES FOR THE PROBLEM MENU.
+C
+      DATA TITLE,LOCFIL/'ALLELE FREQUENCY ESTIMATION','LOCUSM1.DAT'/
+      DATA PEDFIL,OUTFIL/'PEDM1.DAT','OUTM1.DAT'/
+      DATA ECHO,XXSIGN,XYSIGN,NVAR/.TRUE.,'F','M',1/
+      DATA EXTRA/2*0.0D0/
+      DATA LNAME/'ABO',9*' '/
+      DATA MUTLOC,XXRATE,XYRATE,COND/' ',1.0D-6,1.0D-6,0/
+      DATA BASE,STAND,TRAVEL,NPOINT/'E',.FALSE.,'SEARCH',1/
+      DATA NPAR,NCNSTR,ASYCV,MXITER/3,1,.TRUE.,100/
+C
+C     THE ARRAYS AND VARIABLES BEGIN A LONG DESCENT INTO THE
+C     PROGRAM.  SAY GOODBYE TO THEM AND WISH THEM LUCK.
+C
+      CALL MENDEL(EXTRA,RARRAY,IARRAY,CARRAY,LNAME,LARRAY,ABSENT
+     :,CONV,DP,XXRATE,XYRATE,COND,LENC,LENI,LENL,LENR,MXITER,MXLOCI
+     :,MXSTEP,MXTWIN,NCNSTR,NCONV,NEXTRA,NPAR,NPOINT,NVAR,BASE,BATFIL
+     :,LOCFIL,MUTLOC,OUTFIL,PEDFIL,TITLE,TRAVEL,XXSIGN,XYSIGN,ASYCV
+     :,ECHO,LUMP,ORDERD,PMODE,STAND)
+      END
+
+     The logical variables LUMP, ORDERD, and PMODE in the above code are 
+noteworthy.  Ordinarily, these variables should be set to FALSE.  For 
+problems involving loci with many alleles, setting the variable LUMP to
+TRUE can improve computational efficiency.  When LUMP is TRUE, MENDEL 
+consolidates alleles at each locus on a pedigree-by-pedigree basis.
+This action can be especially valuable when a pedigree is completely
+untyped at a locus.  Those alleles not appearing in a pedigree are 
+amalgamated into a single super-allele whose population frequency equals 
+the sum of the frequencies of the alleles amalgamated.  Note that setting 
+LUMP to TRUE for applications such as allele frequency estimation would 
+be disastrous.  You can turn off the lumping option for a single locus,
+say a disease locus, by designating that locus as a mutating locus in menu 
+item 10.  If you do this, then for the sake of clarity it is probably wise
+to set the mutation rates in menu 11 equal to 0.
+     For linkage problems with large numbers of loci, computation times 
+and storage requirements can often be improved by taking PMODE to be 
+TRUE.  As explained in Goradia et al.(1991), it is advantageous to operate 
+in product mode when the number of loci in multipoint linkage calculations 
+exceeds 7 or 8.  When PMODE is set to TRUE, the penetrance, prior, and 
+transmission arrays are factored in an attempt to accelerate likelihood 
+computations.   In this situation MENDEL operates internally by 
+substituting many small arrays for the fewer large arrays encountered in 
+non-product mode.  For the product mode calculations to be correct, 
+Hardy-Weinberg and linkage equilibrium must hold, and phenotypes must not 
+involve interactions among loci.
+     The logical variable ORDERD can be used to input ordered genotypes.
+It is even possible to mix ordered genotypes and the typical unordered 
+genotypes accepted by MENDEL.  If ORDERD is set to TRUE rather than its 
+usual value of FALSE, then a genotype such as 1/3 in the pedigree file 
+indicates someone whose maternal allele is 1 and paternal allele is 3.  
+If we wanted to indicate someone with the same unordered genotype, we 
+could substitute 1-3 for 1/3 in the pedigree file and then mandate in 
+the locus file that the phenotype 1-3 corresponds to either of the 
+ordered genotypes 1/3 or 3/1. 
+
+2. Subroutine INITAL
+
+     Subroutine INITAL allows users to define parameter names, initial
+values, bounds, linear equality constraints, and grids.  MENDEL visits
+this subroutine once per problem just before the likelihood evaluations
+begin.  The code given below is taken from our sample program, USERM9,
+for the analysis of linkage homogeneity.  There are three parameters,
+XTHETA, YTHETA, and LINKED, representing the female recombination
+fraction, the male recombination fraction, and the fraction of pedigrees
+with the linked form of the trait gene, respectively.  These parameters
+are initialized to .5, .5, and nearly 1.  These values also represent
+their upper bounds.  They share a lower bound of nearly 0.
+
+      SUBROUTINE INITAL(ALLFRQ,CNSTR,CVALUE,EXTRA,GRID,PAR,PARMAX
+     1,PARMIN,PNAME,XLINK,XXRATE,XYRATE,MAXALL,MUTATE,NCNSTR,NEXTRA
+     2,NLOCI,NPAR,NPOINT,NVAR,PROBLM,UNIT3,TRAVEL)
+C
+C     IN THIS SUBROUTINE THE USER SHOULD DEFINE THE INITIAL
+C     PARAMETER VALUES, THE PARAMETER BOUNDS, AND THE LINEAR
+C     EQUALITY CONSTRAINTS FOR A LIKELIHOOD SEARCH.  WHEN A
+C     GRID OF LIKELIHOOD VALUES IS DESIRED, THEN ONLY DEFINE 
+C     THE ARRAY GRID.  PARAMETER NAMES CAN BE OPTIONALLY INPUT.
+C
+      IMPLICIT DOUBLE PRECISION(A-H,O-Z)
+      DOUBLE PRECISION ALLFRQ(NLOCI,MAXALL),CNSTR(NCNSTR,NPAR)
+     1,CVALUE(NCNSTR),EXTRA(NEXTRA),GRID(NPOINT,NPAR),PAR(NPAR)
+     2,PARMAX(NPAR),PARMIN(NPAR)
+      INTEGER PROBLM,UNIT3
+      CHARACTER*8 PNAME(NPAR),TRAVEL
+      LOGICAL XLINK(NLOCI)
+C
+C     ASSIGN PARAMETER NAMES.  'XTHETA' IS THE FEMALE RECOMBINATION
+C     FRACTION AND 'YTHETA' THE MALE RECOMBINATION FRACTION. 'LINKED'
+C     IS THE FRACTION OF PEDIGREES WITH THE LINKED FORM.  INITIALIZE
+C     THE RECOMBINATION FRACTIONS TO .5 AND THE LINKED FRACTION TO
+C     1.
+C
+      PNAME(1)='XTHETA'
+      PNAME(2)='YTHETA'
+      PNAME(3)='LINKED'
+      PAR(1)=0.5D0
+      PAR(2)=0.5D0
+      PAR(3)=1.0D0-1.0D-6
+      DO 10 I=1,3
+ 10   PARMIN(I)=1.0D-6
+      PARMAX(1)=0.5D0
+      PARMAX(2)=0.5D0
+      PARMAX(3)=1.0D0-1.0D-6
+      END
+
+     Our allele frequency estimation program USERM1 demonstrates how to
+impose a linear constraint on parameters.  In this case the parameters
+are allele frequencies;  naturally, these frequencies must sum to 1.
+The code implementing this constraint is:
+
+      DO 10 I=1,NPAR
+ 10   CNSTR(1,I)=1.0D0
+      CVALUE(1)=1.0D0
+
+CNSTR contains the constraint coefficients and CVALUE the constraint
+value.  The coefficients determine a particular linear combination of
+the parameters, and this linear combination is fixed at the constant
+given in CVALUE.  For more explanation of how to set up linear equality
+and inequality constraints, see the documentation of SEARCH.
+     In the grid option, the user must define the grid of points in
+parameter space over which likelihoods are to be evaluated.  The
+following code from our linkage program USERM7 defines a grid of equally
+spaced points starting at .5 and ending at very nearly 0.  The
+recombination fractions are forced to have equal values on this grid.
+
+      DO 30 J=1,NPOINT
+      DO 30 I=1,NPAR
+ 30   GRID(J,I)=MAX(0.5D0*(NPOINT-J)/(NPOINT-1.0D0),1.0D-6)
+
+     If you desire a two-dimensional grid with the female and male
+recombination fractions varying independently, then this code should be
+replaced by:
+
+C
+C     CODE FOR A UNIFORM GRID OF POINTS OVER THE SQUARE WITH SIDES
+C     [.0,.5].  USE A NUMBER IN MENU ITEM 16 WHICH IS A SQUARE,
+C     E.G. 121.
+C
+      NP=INT(SQRT(REAL(NPOINT)))
+      IF (NP.EQ.1) THEN
+      DO 30 J=1,NPAR
+ 30   GRID(1,J)=0.5D0
+      ELSE
+      J=0
+      DO 40 K=1,NP
+      DO 40 L=1,NP
+      J=J+1
+      GRID(J,1)=MAX(0.5D0*(NP-K)/(NP-1.0D0),1.0D-6)
+ 40   GRID(J,2)=MAX(0.5D0*(NP-L)/(NP-1.0D0),1.0D-6)
+      END IF
+
+     For the convenience of the user, certain arrays enter INITAL with
+default values.  Parameter names are taken to be PAR 1, PAR 2, and so
+forth if not defined by the user.  Initial parameter values are
+defaulted to a very small positive value, 1.0D-6.  Parameter maxima are
+defaulted to a very large value, 1.0D20, and parameter minima to a very
+large negative value, -1.0D20.  All constraint coefficients and
+constraint values are defaulted to 0.
+
+3. Subroutine OUTPUT
+
+     At each iteration of a search or at each grid point, subroutine
+OUTPUT provides the loglikelihood summed over all pedigrees.  When a
+search is performed, it also gives the score - vector of partial
+derivatives of the loglikelihood.  The following variant from USERM8 is
+common to many of the versions of MENDEL.
+
+      SUBROUTINE OUTPUT(EXTRA,PAR,SCORE,PNAME,LOGLIK,FINAL,ITER,MAXPAR
+     1,NEXTRA,NPAR,NSTEP,UNIT3,BASE,TRAVEL,STAND,UMOVE)
+C
+C     THIS SUBROUTINE OUTPUTS THE LOGLIKELIHOOD AND PARAMETERS
+C     AT EACH ITERATION.
+C
+      IMPLICIT DOUBLE PRECISION(A-H,O-Z)
+      DOUBLE PRECISION EXTRA(NEXTRA),PAR(MAXPAR),SCORE(MAXPAR),LOGLIK
+      INTEGER FINAL,UNIT3
+      CHARACTER*8 PNAME(MAXPAR),BASE,TRAVEL
+      LOGICAL STAND,UMOVE
+      SAVE BEST,IBEST,START
+C
+      IF (ITER.EQ.1) THEN
+      BEST=LOGLIK
+      START=LOGLIK
+      WRITE(UNIT3,10) (PNAME(I),I=1,NPAR)
+ 10   FORMAT(/,' ITER  NSTEP  LOGLIKELIHOOD',(T28,4(4X,A8),:))
+      END IF
+      IF (LOGLIK.GE.BEST) THEN
+      BEST=LOGLIK
+      IBEST=ITER
+      END IF
+      IF (STAND) LOGLIK=LOGLIK-START
+      IF (BASE.EQ.'10') LOGLIK=LOG10(EXP(1.0D0))*LOGLIK
+      WRITE(UNIT3,20) ITER,NSTEP,LOGLIK,(PAR(I),I=1,NPAR)
+ 20   FORMAT(/,I4,3X,I3,3X,D14.7,(T28,4(1X,D11.4),:))
+      IF (ITER.EQ.FINAL) WRITE(UNIT3,30) IBEST
+ 30   FORMAT(/,' THE MAXIMUM LOGLIKELIHOOD OCCURS AT ITERATION',I4,'.')
+      END
+
+     It is clear that the above code keeps track of the maximum
+loglikelihood as well as writing the parameter values and loglikelihood
+at each iteration.  This subroutine is where standardization and
+conversion to base 10 of loglikelihoods takes place.  Note the bad
+programming habit in the conversion of the loglikelihood to base 10.  In
+general, it is a poor idea to change a variable like LOGLIK that may
+affect the next iteration.  In this case it is permissible because the
+minimization routine calling OUTPUT deals with -LOGLIK and this value is
+preserved.
+     Two well-placed write statements in this subroutine permit the
+output from each iteration to appear on your terminal.  Just duplicate
+the first two write statements already in the code, replacing UNIT3 by
+the standard output number 6 for the screen.  Put each duplicated write
+statement immediately after the corresponding current write statement.
+UNIT3=3 is the unit number for writing to the output file.  Note that
+Fortran units 1 and 2 are used for internal manipulation of data.  If
+you want to open another file for any purposes, then use a unit number
+other than 1, 2, or 3.
+     The above code also exposes a slight deception practiced in other
+routines of MENDEL.  In some problems there are no parameters;  in many
+there are no constraints.  Because some compilers will give an error
+message if an array enters a subroutine with no entries, it is
+occasionally necessary to substitute max(1,size) for the size of an
+array.  In subroutine INITAL for example, the variable NCNSTR always
+enters with a value of at least 1 even though the number of constraints
+is zero.  In the code of OUTPUT, a careful distinction is made between
+the number of parameters, NPAR, and MAXPAR= max(NPAR,1).  Internally,
+MENDEL keeps an accurate record of all array sizes.  The only
+possibility for trouble arises when users write their own code and key
+on whether certain variables like NCNSTR, NPAR, and NVAR have zero or
+non-zero values.
+     The logical variable UMOVE in the calling argument of OUTPUT
+permits you to assume control of the search process.  There are
+alternate algorithms like the EM algorithm that have attractive
+convergence properties (Dempster et al., 1977).  If you want to
+implement an alternative to MENDEL's default quadratic programming
+algorithm, then set UMOVE to TRUE and update the parameter values in
+OUTPUT accordingly.  Note that setting UMOVE to TRUE does not turn off
+the usual convergence criterion in a search.  Also do not change
+parameter values at the last iteration since this will create problems
+in computing asymptotic standard errors for the parameters.  In the code
+below from USERM7, we adopt a hybrid strategy that initially employs the
+EM algorithm and then switches to recursive quadratic programming when
+the gain in the loglikelihood is less than 1. 
+
+      IF (ITER.EQ.1) THEN
+      ...
+      OLDLIK=-1.0D20
+      ...
+      END IF
+      ...
+C
+C     UPDATE THE RECOMBINATION FRACTIONS BY THE EM ALGORITHM.
+C
+      UMOVE=LOGLIK-OLDLIK.GE.1.0D0.AND.TRAVEL.EQ.'SEARCH'
+      IF (UMOVE.AND.ITER.NE.FINAL) THEN
+      DO 40 I=1,NPAR
+      PAR(I)=PAR(I)+EXTRA(2)*PAR(I)*(1.0D0-PAR(I))*SCORE(I)/EXTRA(1)
+      PAR(I)=MAX(PAR(I),1.0D-5)
+ 40   PAR(I)=MIN(PAR(I),.5D0)
+      END IF
+      OLDLIK=LOGLIK
+      END
+
+     If UMOVE is set to TRUE under the grid option, then the parameter
+values in the variable GRID are simply ignored.  It is up to you to
+determine the next point in parameter space by changing PAR in OUTPUT.
+You can even diminish ITER by 1 at each visit to OUTPUT to circumvent
+the usual termination criterion when ITER equals NPOINT.  This is useful
+when you want to randomly sample a likelihood surface and still avoid
+large storage requirements for the array GRID.
+
+4. Subroutine NEWLIK
+
+     Subroutine NEWLIK permits modification or examination of
+loglikelihoods for particular pedigrees at any iteration.  MENDEL visits
+NEWLIK once per iteration per pedigree under the grid option.  Under the
+search option MENDEL will visit NEWLIK multiple times since multiple
+loglikelihoods are necessary to compute partial derivatives.  In genetic
+counseling problems like that exemplified in USERM5, the following
+variant of NEWLIK should be employed.  This variant makes a pedigree the
+denominator pedigree for counseling if its order among all pedigrees
+matches the variable COND set by menu item 12.
+
+      SUBROUTINE NEWLIK(EXTRA,PAR,LOGLIK,COND,ITER,NEXTRA,NPAR,NPED,PED)
+C
+C     THIS SUBROUTINE ALLOWS THE USER TO MODIFY THE LOGLIKELIHOOD
+C     OF A PARTICULAR PEDIGREE.  FOR INSTANCE, IN GENETIC COUNSELING
+C     PROBLEMS IT MAY BE NECESSARY TO FORM CONDITIONAL PROBABILITIES.
+C     COND TELLS WHICH PEDIGREE, IF ANY, TO CONDITION ON.
+C
+      IMPLICIT DOUBLE PRECISION(A-H,O-Z)
+      DOUBLE PRECISION EXTRA(NEXTRA),PAR(NPAR),LOGLIK
+      INTEGER COND,PED
+C
+      IF (PED.EQ.COND) LOGLIK=-LOGLIK
+      END
+
+     Several other versions of MENDEL can be consulted for different
+uses of NEWLIK.
+
+5. Subroutine APEN
+
+     Penetrance is the relationship between genotype and phenotype.
+Technically, a penetrance function defines the likelihood of a
+particular phenotype given a particular genotype.  This generalizes the
+narrow notion that equates penetrance with the probability of being
+affected with a disease given a susceptible genotype.  PEN provides the
+penetrance function for MENDEL.  For problems concerning standard
+Mendelian markers, the penetrance function is either 0. or 1.  Since
+MENDEL automatically eliminates genotypes incompatible with phenotype,
+the usual version of APEN requires only the do loop
+
+      DO 10 I=1,NGTYPE
+ 10   PEN(I)=1.0D0
+
+Here PEN is viewed as an array and is defined for the whole sequence of
+NGTYPE possible genotypes of the current person.  The reason for
+fetching all the penetrance values at once rather than one genotype at a
+time is simply to reduce the overhead associated with a subroutine call.
+     In other problems the relationship between genotype and phenotype
+is more subtle.  Genetic counseling for Duchenne muscular dystrophy, DMD,
+with a carrier detection test furnishes a good example.  The code below
+is taken from USERM6.  Variable number 1 is log CPK;  CPK tends to be
+elevated in carrier females.  This code illustrates how extra constants
+enter into a particular problem.  Although these means and standard
+deviations could be stored in an array local to subroutine APEN, this
+would eliminate the chance to display them on the menu.  Since menu
+choices are echoed in the output file, the user has a permanent record
+of what values were assigned to the constants. 
+
+      SUBROUTINE APEN(EXTRA,PAR,PEN,VAR,GENES,XLINK,ABSENT,XXRATE
+     1,XYRATE,FIRST,LAST,MUTATE,NEXTRA,NGTYPE,NLOCI,NPAR,NVAR,PED
+     2,PER,MALE)
+C
+C     PEN SUPPLIES THE PENETRANCE PROBABILITIES FOR EACH PERSON
+C     IN A PEDIGREE.
+C
+      IMPLICIT DOUBLE PRECISION(A-H,O-Z)
+      DOUBLE PRECISION EXTRA(NEXTRA),PAR(NPAR),PEN(NGTYPE),VAR(NVAR)
+      INTEGER FIRST,GENES(FIRST:LAST,2,NGTYPE),PED,PER
+      LOGICAL XLINK(NLOCI),MALE
+C
+      DO 10 I=1,NGTYPE
+      IF (VAR(1).NE.ABSENT.AND.MUTATE.GE.FIRST.AND.MUTATE.LE.LAST)
+     :THEN
+C
+C     EVALUATE AN APPROPRIATE NORMAL DENSITY FOR LOG CPK DEPENDING ON
+C     WHETHER THE CURRENT MEASURED FEMALE HAS A NORMAL OR CARRIER
+C     GENOTYPE.  MUTATE TELLS WHICH LOCUS NUMBER CORRESPONDS TO DMD.
+C     EXTRA(1) IS THE NORMAL MEAN AND EXTRA(3) THE NORMAL STANDARD
+C     DEVIATION FOR LOG CPK.  EXTRA(2) IS THE CARRIER MEAN AND EXTRA(4)
+C     THE CARRIER STANDARD DEVIATION FOR LOG CPK.
+C
+      IF (GENES(MUTATE,1,I).EQ.1.AND.GENES(MUTATE,2,I).EQ.1) THEN
+      PEN(I)=EXP(-(VAR(1)-EXTRA(1))**2/(2.0D0*EXTRA(3)**2))/EXTRA(3)
+      ELSE
+      PEN(I)=EXP(-(VAR(1)-EXTRA(2))**2/(2.0D0*EXTRA(4)**2))/EXTRA(4)
+      END IF
+      ELSE
+C
+C     CPK HAS NOT BEEN OBSERVED ON THE CURRENT PERSON.  JUST SET
+C     THE PENETRANCE EQUAL TO 1.
+C
+      PEN(I)=1.0D0
+      END IF
+ 10   CONTINUE
+      END
+
+     Another feature of the code above is worth noting.  The genotypes
+of the current individual are passed to APEN in the three dimensional
+array GENES.  Since every genotype can be thought of as the union of two
+gametes, it suffices to supply these two gametes for every multiple
+locus genotype.  Consider the Ith multiple locus genotype of the current
+person.  The allele at the Jth locus of the first gamete is given in
+GENES(J,1,I).  The allele at the Kth locus of the second gamete is given
+in GENES(K,2,I).  For example, GENES(3,2,4)=1 indicates that the fourth
+multiple locus genotype has allele number one at the third locus of its
+second gamete.  The phrase 'third locus' refers to the third locus as
+listed in menu item 9, not the third locus of the locus file.  In menu
+item 9, the locus on the left is locus 1, the one next to it is locus 2,
+and so forth.   For instance, if the third locus of menu item 9 is the
+X-linked locus L128, then GENES(3,2,4)=1 refers to the first allele
+listed in the locus file for L128.
+     When computations are carried out in non-product mode, it reduces
+computation times not to distinguish the maternal or paternal origin of
+the two gametes constituting a multiple locus genotype.  This lack of
+specificity causes no difficulties as long as all loci are autosomal.
+To carry through this convention successfully for X-linked loci, it
+becomes necessary to force both alleles at an X-linked locus to be
+identical whenever a male is encountered.  Subroutines APEN, APRIOR, and
+ATRANS all operate on this premise. In product mode, GENES(*,1,I) refers
+to the maternal gamete and GENES(*,2,I) to the paternal gamete of the
+current person.  Thus, in product mode we deal with fully ordered
+genotypes.  Also observe that the variables FIRST and LAST satisfy
+FIRST = LAST in product mode since only one locus is presented at a time
+for a penetrance computation.
+     Finally, the above code exploits a convenience feature introduced
+by the variable MUTATE.  MUTATE specifies the position of the mutating
+locus among the list of loci relevant to the current problem.  For
+example, if DMD is the second locus in menu item 9, then MUTATE=2.
+Note that the above code checks whether MUTATE is between FIRST and
+LAST.  Usually FIRST = 1 and LAST = NLOCI, so the check is unnecessary.
+However, in product mode APEN is visited at each locus of each person,
+and the resulting locus-specific penetrances are multiplied.  Thus, we
+must be careful not to compute the DMD penetrance multiple times in
+product mode.
+
+6. Subroutine APRIOR
+
+     This subroutine supplies the prior probabilities for the genotypes
+of a pedigree founder.  In the vast majority of cases, the assumptions
+of Hardy-Weinberg and linkage equilibrium are justified. This means that
+the prior probability of a multiple locus genotype can be easily
+calculated.  As mentioned in our discussion of subroutine APEN, the
+genotype of any person can be viewed as the union of two gametes.  Given
+Hardy-Weinberg and linkage equilibrium, the probability of a fully
+ordered genotype is the product of the probabilities of the constituent
+gametes.  The gamete probabilities are themselves the product of the
+allele frequencies for the alleles at the various loci comprising the
+gamete.  There are two exceptions to these rules.  At an X-linked locus,
+a male receives no contribution from his father, and in non-product
+mode where the maternal and paternal origin of gametes is not recorded,
+the prior probability must be multiplied by 2 when the gametes are not
+identical.  MENDEL internally supplies the necessary factor of 2.
+     The code below is common to the various versions of MENDEL.  It
+implements the assumptions of Hardy-Weinberg and linkage equilibrium
+using the allele frequencies passed from the locus file.  With some work
+the code could be amended to take into account departures from these two
+basic assumptions.  Note again that FIRST = LAST in product mode since
+only one locus is presented at a time for a prior computation.
+
+      SUBROUTINE APRIOR(ALLFRQ,EXTRA,PAR,PRIOR,VAR,GENES,XLINK
+     1,ABSENT,XXRATE,XYRATE,FIRST,LAST,MAXALL,MUTATE,NEXTRA,NGTYPE
+     2,NLOCI,NPAR,NVAR,PED,PER,MALE)
+C
+C     PRIOR SUPPLIES THE PRIOR PROBABILITIES FOR EACH FOUNDER IN
+C     A PEDIGREE.  THE CURRENT VERSION IS VALID IF HARDY-WEINBERG
+C     AND LINKAGE EQUILIBRIUM HOLD AT ALL LOCI.  LOCI MAY BE AUTOSOMAL
+C     OR X-LINKED.
+C
+      IMPLICIT DOUBLE PRECISION(A-H,O-Z)
+      DOUBLE PRECISION ALLFRQ(NLOCI,MAXALL),EXTRA(NEXTRA),PAR(NPAR)
+     1,PRIOR(NGTYPE),VAR(NVAR)
+      INTEGER FIRST,GENES(FIRST:LAST,2,NGTYPE),PED,PER
+      LOGICAL XLINK(NLOCI),MALE
+C
+      DO 10 I=1,NGTYPE
+      P=1.0D0
+      DO 20 LOCUS=FIRST,LAST
+      IG1=GENES(LOCUS,1,I)
+      IF (XLINK(LOCUS).AND.MALE) THEN
+      P=P*ALLFRQ(LOCUS,IG1)
+      ELSE
+      IG2=GENES(LOCUS,2,I)
+      P=P*ALLFRQ(LOCUS,IG1)*ALLFRQ(LOCUS,IG2)
+      END IF
+ 20   CONTINUE
+ 10   PRIOR(I)=P
+      END
+
+7. Subroutine ATRANS
+
+     TRANS computes the transmission probabilities connecting parental
+genotypes to their possible gametes.  This subroutine tends to be the
+most complicated to code.  Several variants exist in the sample
+application programs for MENDEL.  A particularly simple variant from
+USERM13 that can be substituted in many applications follows:
+
+      SUBROUTINE ATRANS(EXTRA,PAR,TRANS,VARI,VARJ,GAMETE,GENES,XLINK
+     1,ABSENT,XXRATE,XYRATE,FIRST,LAST,MUTATE,NEXTRA,NGTYPE,NLOCI
+     2,NPAR,NVAR,PED,PERI,PERJ,MALEI,MALEJ)
+C
+C     TRANS SUPPLIES THE TRANSMISSION PROBABILITIES FOR EACH
+C     PARENT-OFFSPRING PAIR IN A PEDIGREE.  THE SUFFIX I INDICATES
+C     THE PARENT AND THE SUFFIX J THE CHILD.  SEVERAL MULTIPLE
+C     LOCUS GENOTYPES OF THE PARENT ARE PASSED VIA THE ARRAY GENES.
+C     THE ARRAY GAMETE REPRESENTS ONE OF THE TWO GAMETES MAKING UP
+C     A MULTIPLE LOCUS GENOTYPE OF THE CHILD.  THE PRESENT VERSION
+C     CORRESPONDS TO MULTIPLE UNLINKED LOCI UNDERGOING REGULAR
+C     MENDELIAN INHERITANCE.  THE LOCI MAY BE AUTOSOMAL OR X-LINKED
+C     OR BOTH.
+C
+      IMPLICIT DOUBLE PRECISION(A-H,O-Z)
+      DOUBLE PRECISION EXTRA(NEXTRA),PAR(NPAR),TRANS(NGTYPE)
+     1,VARI(NVAR),VARJ(NVAR)
+      INTEGER FIRST,GAMETE(FIRST:LAST),GENES(FIRST:LAST,2,NGTYPE)
+     1,PED,PERI,PERJ
+      LOGICAL XLINK(NLOCI),FOUND,MALEI,MALEJ
+C
+      DO 10 I=1,NGTYPE
+      TRANS(I)=1.0D0
+      DO 20 LOCUS=FIRST,LAST
+      T=0.0D0
+      IF (XLINK(LOCUS).AND.MALEI) THEN
+      IF (MALEJ.OR.GENES(LOCUS,1,I).EQ.GAMETE(LOCUS)) T=1.0D0
+      ELSE
+      IF (GENES(LOCUS,1,I).EQ.GAMETE(LOCUS)) T=T+0.5D0
+      IF (GENES(LOCUS,2,I).EQ.GAMETE(LOCUS)) T=T+0.5D0
+      END IF
+ 20   TRANS(I)=TRANS(I)*T
+ 10   CONTINUE
+      END
+
+     Other variants of ATRANS are appropriate for multiple linked loci
+(USERM7), multiple linked loci with one locus undergoing mutation
+(USERM6), multiple allele segregation analysis (USERM11), three linked
+loci with genetic interference, and a single locus parameterized by the
+segregation coefficients of Elston and Stewart.  Please consult the file
+TRANS.FOR for the last two variants.  If you use the variant in USERM6
+allowing for mutation, please note that mutation can only convert allele
+1 to allele 2 of the mutating locus.
+     Most of the versions of MENDEL contain the variant appropriate for
+multiple linked loci.  For problems having a single locus, no parameters
+are involved in this variant.  For n loci with n greater than 1, the
+first n-1 parameters are female recombination fractions.  The next n-1
+parameters are the corresponding male recombination fractions.  The key
+element of the algorithm for computing the transmission probability is
+the generalization of Trow's formula given in Cavalli-Sforza and Bodmer
+(1971, page 882, formula [83]).  If you want to switch to neuter
+recombination fractions in this variant, then omit the code
+
+      IF (MALEI) THEN
+      K=NLOCI-1
+      ELSE
+      K=0
+      END IF
+
+and change the line
+
+ 30   IF (FOUND.AND.LOCUS.LT.NLOCI) R=R*(1.0D0-2.0D0*PAR(LOCUS+K))
+
+to the line
+
+ 30   IF (FOUND.AND.LOCUS.LT.NLOCI) R=R*(1.0D0-2.0D0*PAR(LOCUS))
+
+     The code for the whole subroutine is:
+
+      SUBROUTINE ATRANS(EXTRA,PAR,TRANS,VARI,VARJ,GAMETE,GENES,XLINK
+     1,ABSENT,XXRATE,XYRATE,FIRST,LAST,MUTATE,NEXTRA,NGTYPE,NLOCI
+     2,NPAR,NVAR,PED,PERI,PERJ,MALEI,MALEJ)
+C
+C     TRANS SUPPLIES THE TRANSMISSION PROBABILITIES FOR EACH
+C     PARENT-OFFSPRING PAIR IN A PEDIGREE.  THE CURRENT VERSION OF
+C     ATRANS IS VALID FOR MULTIPLE LINKED LOCI UNDER THE SIMPLIFYING
+C     ASSUMPTION OF NO CHIASMA INTERFERENCE.  THE LOCI MAY BE ALL
+C     AUTOSOMAL OR ALL X-LINKED.  PARAMETERS 1 TO NLOCI-1 ARE THE
+C     FEMALE RECOMBINATION FRACTIONS FOR THE SEQUENCE OF ADJACENT
+C     INTERVALS DEFINED BY THE LOCI.  PARAMETERS NLOCI TO 2*NLOCI-2
+C     ARE THE CORRESPONDING MALE RECOMBINATION FRACTIONS.  THE SUFFIX
+C     I INDICATES THE PARENT AND THE SUFFIX J THE CHILD.  SEVERAL
+C     MULTIPLE LOCUS GENOTYPES OF THE PARENT ARE PASSED VIA THE
+C     ARRAY GENES.  THE ARRAY GAMETE REPRESENTS ONE OF THE TWO
+C     GAMETES MAKING UP A MULTIPLE LOCUS GENOTYPE OF THE CHILD.
+C
+      IMPLICIT DOUBLE PRECISION(A-H,O-Z)
+      DOUBLE PRECISION EXTRA(NEXTRA),PAR(NPAR),TRANS(NGTYPE)
+     1,VARI(NVAR),VARJ(NVAR)
+      INTEGER FIRST,GAMETE(FIRST:LAST),GENES(FIRST:LAST,2,NGTYPE)
+     1,PED,PERI,PERJ
+      LOGICAL XLINK(NLOCI),FOUND,MALEI,MALEJ,MATCH1,MATCH2,PHASE
+C
+C     IF THE LOCI ARE X-LINKED AND BOTH THE PARENT AND CHILD ARE
+C     MALE, THEN THE TRANSMISSION PROBABILITY IS BY DEFINITION 1.
+C
+      IF (XLINK(FIRST).AND.MALEI.AND.MALEJ) THEN
+      DO 10 I=1,NGTYPE
+ 10   TRANS(I)=1.0D0
+      RETURN
+      END IF
+C
+C     SET THE COUNTER FOR THE FIRST PARAMETER.  OMIT THE NEXT FIVE LINES
+C     OF CODE FOR SEX INDEPENDENT RECOMBINATION FRACTIONS
+C
+      IF (MALEI) THEN
+      K=NLOCI-1
+      ELSE
+      K=0
+      END IF
+C
+C     REDUCE THE COMPUTATIONS BY CONSIDERING ONLY THE HETEROZYGOUS LOCI.
+C     EXPRESS THE RECOMBINATION FRACTION BETWEEN TWO HETEROZYGOUS
+C     LOCI IN TERMS OF THE RECOMBINATION FRACTIONS BETWEEN THE ADJACENT
+C     LOCI WHICH SEPARATE THEM.  SET THE LOGICAL VARIABLE FOUND TO TRUE
+C     WHEN THE FIRST HETEROZYGOUS PARENTAL LOCUS IS FOUND.  PHASE RECORDS
+C     THE PHASE OF THE MOST RECENT HETEROZYGOUS PARENTAL LOCUS.
+C
+      DO 20 I=1,NGTYPE
+      FOUND=.FALSE.
+      DO 30 LOCUS=FIRST,LAST
+      MATCH1=GENES(LOCUS,1,I).EQ.GAMETE(LOCUS)
+      MATCH2=GENES(LOCUS,2,I).EQ.GAMETE(LOCUS)
+C
+C     CHECK WHETHER EITHER THE FIRST OR SECOND PARENTAL GENE AT THE
+C     CURRENT LOCUS MATCHES THE GAMETE GENE AT THIS LOCUS.  IF NOT,
+C     THEN RETURN WITH 0. FOR THE TRANSMISSION PROBABILITY.
+C
+      IF (.NOT.MATCH1.AND..NOT.MATCH2) THEN
+      T=0.0D0
+      GO TO 20
+      END IF
+C
+C     CHECK WHETHER THE CURRENT LOCUS IS HETEROZYGOUS.
+C 
+      IF (MATCH1.NEQV.MATCH2) THEN
+      IF (FOUND) THEN
+      IF (PHASE.EQV.MATCH1) THEN
+      T=T*(0.5D0+R)
+      ELSE
+      T=T*(0.5D0-R)
+      END IF
+      ELSE
+      FOUND=.TRUE.
+      IF (FIRST.EQ.1) THEN
+      T=0.5D0
+      ELSE
+      T=1.0D0
+      END IF
+      END IF
+      PHASE=MATCH1
+      R=0.5D0
+      END IF
+ 30   IF (FOUND.AND.LOCUS.LT.LAST) R=R*(1.0D0-2.0D0*PAR(LOCUS+K))
+C
+C     FOR SEX INDEPENDENT RECOMBINATION FRACTIONS REPLACE THE ABOVE LINE
+C     OF CODE BY THE FOLLOWING LINE OF CODE.
+C
+C30   IF (FOUND.AND.LOCUS.LT.LAST) R=R*(1.0D0-2.0D0*PAR(LOCUS))
+      IF (.NOT.FOUND) T=1.0D0
+ 20   TRANS(I)=T
+      END
+
+
+			 Sample Versions of MENDEL
+
+
+     The various versions of MENDEL are named USERMn.FOR, n=1,...,13.
+Associated with each is an output file OUTMn.DAT.  Except for those
+sharing data with a previous version, they also have a locus file,
+LOCUSMn.DAT, and a pedigree file, PEDMn.DAT.  These files can be
+consulted for information beyond the following brief descriptions.
+
+1. USERM1: Allele Frequency Estimation
+
+     USERM1 is designed to estimate allele frequencies for a single
+locus from a random sample of unrelated individuals.  The pedigree file
+should contain one pedigree with a single individual for each phenotype.
+This individual may be of either sex for an autosomal locus.  If the
+locus is X-linked, then there should be separate female and male
+pedigrees for each phenotype that is intended for both sexes.  If a
+phenotype is intended for only one sex, you need only include a pedigree
+of that sex.  A quantitative variable must be defined for each of these
+dummy pedigrees.  This quantitative variable records how many people in
+the random sample have the given phenotype.  Examination of OUTM1.DAT
+and OUTM1A.DAT should make these conventions clear.  These two examples
+deal with the ABO locus and colorblindness, respectively, and are taken
+from Rao(1973) and Crow and Kimura(1970).
+     The allele frequencies given in the locus file are used as
+preliminary guesses in a search to find the maximum likelihood
+estimates.  In the output of USERM1, the allele frequencies are labeled
+ALLELE 1, ALLELE 2, and so forth.  Each iteration is printed until the
+maximum likelihood estimates are achieved at the final iteration.  A
+likelihood ratio test for Hardy-Weinberg equilibrium is also printed.
+This test statistic follows an approximate chi-square distribution with
+n-m degrees of freedom if n is the number of pedigrees and m the number
+of alleles.  For X-linked loci the degrees of freedom is n-m-1.  The
+number of parameters should be set to m.  Please note that the
+likelihood ratio test is only valid if phenotypes are unique.  For
+instance, if at the ABO locus some individuals are designated as having
+phenotype AB and others as having genotype A/B, then the AB phenotype is
+artificially split into two separate phenotypes, and the likelihood ratio
+statistic will come out wrong.  The allele frequency estimates will be
+correct, however.
+     USERM1 computes the fraction of heterozygotes and the polymorphism
+information content number of Botstein et al.(1980) based on the maximum
+likelihood allele frequencies.  Both of these indices give an idea of
+how valuable a locus is as a linkage marker.
+     The Fortran code for USERM1 illustrates how subroutine NEWLIK can
+be employed to adjust the loglikelihood for a pedigree.  It also shows
+how to parameterize gene frequencies and how to pass information between
+subroutines using the array EXTRA.
+
+2. USERM2: Racial Admixture
+
+     This version of MENDEL estimates the fractional contributions of
+different ancestral populations to the gene pool of a contemporary
+population.  The particular example worked deals with the contributions of
+African, American Indian, and Portuguese sources to a Brazilian population
+(Elston, 1971;  Roberts and Hiorns, 1965).  Parameters are the fractional
+contributions.  Gene frequencies must be provided for the ancestral
+populations.  This is done by data statements for the arrays AFRICA,
+INDIAN, and PORT in subroutine APRIOR.  Note that the data statements
+follow the usual Fortran convention of rows (alleles) varying faster than
+columns (loci).  The allele frequencies for the Brazilian population are
+expressed as linear combinations of these ancestral frequencies using the
+fractional contribution parameters.  See subroutine APRIOR for the detailed
+coding. 
+     The pedigree input data consists of a sequence of single person
+pedigrees, one for each phenotype at each locus.  A quantitative
+variable is included for each pedigree to indicate how many people in
+the sample of unrelated people share this phenotype.  The phenotypes for
+the other loci are given as ? marks.  The logic for this subterfuge is
+that we want to treat the loci as independent even though this is a
+multiple locus problem.  To insure that the genotype frequencies depend
+only on the current locus we must limit the number of genotypes at the
+irrelevant loci to one each and force the genotypes at these irrelevant
+loci to have frequency 1.  This is accomplished by adding a dummy allele
+for each locus.  This allele we give the symbol ? and a frequency of 1.
+in the arrays AFRICA, INDIAN, and PORT.  With these conventions MENDEL
+forces all the irrelevant loci to have genotype ?/? corresponding to
+the phenotype ? and a genotype frequency of 1.  In other words, even
+though each person has a multiple locus genotype, only the one with the
+non-? phenotype is relevant.
+     This nonsense becomes clearer on examining the locus and pedigree
+files.  Incidentally, the allele frequencies in the locus file are
+arbitrary.  They are chosen only to suppress the warning given when
+allele frequencies do not add to 1.  Let us reiterate that the actual
+allele frequencies are given in the population arrays local to APRIOR.
+The number of parameters is obviously equal to the number of ancestral
+populations.  In problems involving more loci, the variable MXLOCI in
+the main routine of USERM2 may have to be increased.  Furthermore, all
+loci may not be displayed on the menu in larger problems.  They are
+still accessible to MENDEL even if they are not displayed.
+
+3. USERM3: Paternity Testing
+
+     Paternity testing confirms or eliminates a putative father as the
+actual father of a child.  Phenotyping of the mother, child, and
+putative father is done at a number of different loci.  If a genetic
+inconsistency is found, then the putative father can be eliminated from
+consideration.  On the other hand, if the trio is consistent at all loci
+typed, then either a rare event has occurred or the putative father is
+the actual father.  There are two ways of quantifying the rarity of this
+event.  The first way is to take a Bayesian approach and compute a
+likelihood ratio of the trio with the putative father as real father
+versus the trio with the real father as a random male.  This likelihood
+ratio or paternity index can be transformed into a posterior probability
+if a prior probability of paternity is supplied.  Some statistical
+geneticists refuse to take this Bayesian step and simply insist that the
+paternity index has a fundamental importance of its own.
+     Another approach to the problem is to compute the probability that
+a random male would not be excluded by at least one of the tests given
+the phenotypes of the mother and child.  This may not be as powerful,
+but it is free from controversy.  We take the coward's way out and
+compute both a paternity index and a non-exclusion probability.  Both of
+these measures are computed for each locus separately and cumulated over
+all loci.  By reporting them for each locus separately, you can see which
+loci are critically important in confirming paternity. The cumulative
+measures, however, are the ones that should be quoted. 
+     The pedigree data for USERM3 should be arranged exactly as in
+PEDM3.DAT.  Two families should be included.  The first pedigree
+contains the putative father as actual father.  The second pedigree
+contains a random male with all phenotypes unknown as the actual father.
+This random male must be the first person of the second pedigree.  The
+putative father is given as an isolated individual in the second
+pedigree.
+     In running USERM3 do not change any of the menu settings except for
+the names of the locus, pedigree, and output files and the locus
+specified for the current problem.  When the paternity measures are
+computed, they are done one locus at a time.  Each locus corresponds to
+a separate problem in an overall run including all typed loci.  The
+cumulative measures are available in the output of the last problem.
+
+4. USERM4: Twin Zygosity
+
+     There are some obvious analogies between determining twin zygosity
+and paternity testing.  In both cases one looks for exclusions on the
+basis of phenotyping at a large number of loci.  If there are no
+inconsistencies, then a measure of how likely the twins are to be
+identical should be computed.  In determining twin zygosity a Bayesian
+approach is clearly justified.  Prior probabilities that like-sexed
+twins are identical are well known.  These may vary from population to
+population (Cavalli-Sforza and Bodmer, 1971).  From these priors USERM4
+computes the posterior probability that the two twins are identical.
+     The pedigree file for USERM4 should contain two pedigrees.  In the
+first the twins are designated MZ, and in the second they are designated
+DZ.  The parents of the twins are included in the file, but they need
+not be typed.  As in USERM3, each locus requires a separate problem.  The
+posterior probability is cited for each locus separately and cumulated
+over all loci jointly.  The final cumulated posterior probability is
+available in the output of the last problem.  The prior probability that
+two like-sexed twins are identical should occupy the first element in the
+array of extra constants.
+
+5. USERM5: Genetic Counseling for Cystic Fibrosis
+
+     USERM5 illustrates how to set up a genetic counseling problem.  The
+strategy has already been outlined in our discussion of menu item 12.
+In this particular example the denominator pedigree does not even list
+the riskee individual, P15.  Equivalently, one could list her with
+phenotype unobserved.  A novel feature of this problem from Murphy and
+Chase(1975) is the presence of two inbreeding loops in the pedigree.
+MENDEL needs no special input beyond the information in the pedigree
+file to do the calculations correctly.  Our answer differs very slightly
+from that in Murphy and Chase(1975) because they ignore some
+possibilities for multiple entries of the cystic fibrosis gene into the
+pedigree.
+     We should add as a footnote to this example that there are now
+linked markers for the cystic fibrosis gene.  See White(1986) for
+references.  Naturally, these markers should be used in a real
+counseling situation.  Our next sample problem on Duchenne muscular
+dystrophy shows how to incorporate linked, flanking markers in a risk
+assessment.  This problem is also already dated due to the discovery of
+more closely linked markers (Monaco et al.,1985).  However, the
+principles of risk calculation demonstrated in both problems remain
+valid even as more definitive markers appear.
+
+6. USERM6: Genetic Counseling for Duchenne Muscular Dystrophy
+
+     This counseling example is more complicated than the last example.
+Mutation, information on two flanking markers, and a carrier detection test
+based on CPK must all be taken into account.  Incorporation of the carrier
+detection test has already been addressed in our discussion of subroutine
+APEN.  Mutation is handled by designating the DMD locus as mutable in menu
+item 10 and supplying female and male mutation rates in menu item 11. 
+Observe that in the output file, OUTM6.DAT, the female and male mutation
+rates are assumed equal and the frequency of the DMD disease allele is
+taken to be twice the mutation rate.  This agrees with the classical theory
+of Haldane (Murphy and Chase, 1975). Also note that the DMD disease allele
+is listed first in the locus file because the current version of ATRANS
+allows mutation only from allele 1 to allele 2 of the mutable locus. 
+     The three problems considered in this example correspond to using
+the DMD data alone, data on DMD and one flanking marker RC8, and data on
+DMD and both flanking markers RC8 and L128.  The numbers of parameters
+are 0, 1, and 2 as dictated by the current version of ATRANS.  To
+further complicate matters a risk interval is output for each problem.
+The range of risks is supposed to reflect the current uncertainty in the
+estimates of the recombination fractions.  A detailed treatment of the
+necessary statistical theory is provided in Lange(1985).  Suffice it to
+say here that the formation of risk intervals is done in subroutine OUTPUT. 
+Data statements in this subroutine initialize the asymptotic standard
+errors and correlations of the recombination fraction estimates.  Later
+in the subroutine these asymptotic errors and correlations are combined
+with the derivatives of the log of the risk to produce risk intervals. 
+The necessary Fortran code in USERM6 is largely self-explanatory. 
+
+7. USERM7: Linkage Analysis and Multipoint Mapping
+
+     USERM7 does standard LOD score calculations for a pair of loci as
+well as multipoint mapping calculations for three or more loci. Whatever
+the number of loci, they must lie on the same chromosome, either the X
+chromosome or one of the autosomes.  As mentioned in our discussion of
+subroutine ATRANS, the number of parameters is 2*(n-1) if there are n
+autosomal loci.  Half of these are female recombination fractions and
+half male recombination fractions.  For X-linked loci only the female
+recombination fractions are relevant.  The first parameter is the female
+recombination fraction between loci 1 and 2 as listed in menu item 9. 
+The second parameter is the female recombination fraction between loci 2
+and 3 if there is a third locus. This pattern continues until all loci
+are exhausted.  If the loci are autosomal, then the male recombination
+fractions are taken in the same order and assigned parameters n through
+2*(n-1).  In multipoint mapping problems chiasma interference is
+ignored.  There is, however, a variant of ATRANS which allows a
+non-unity coefficient of coincidence when there are three loci. Please
+check the file TRANS.FOR. 
+     Under the grid option all recombination fractions are forced to be
+equal and are varied over a set of equally spaced points starting at .5
+and ending at almost 0.  The number of points in this grid can be set by
+menu item 16.  If the search option is specified, then all recombination
+fractions are initialized to .5.  For both grid and search options, all
+likelihoods are standardized by the first one.  This gives the usual LOD
+score when loglikelihoods are reported to base 10.  Gene order can be
+inferred by comparing maximum loglikelihoods when different orders for
+the loci are entered in menu item 9 (Lange et al., 1985).
+     The search strategy pursued in USERM7 is a hybrid between the EM
+algorithm (Dempster et al.,1977;  Ott, 1977;  Lander and Green, 1987)
+and the usual recursive quadratic programming default of MENDEL.  Our
+discussion in subroutine OUTPUT shows how the switch from the EM
+algorithm to the default algorithm is accomplished.  This hybrid
+algorithm seems to retain both the initial stability of the EM algorithm
+and the final quick convergence of recursive quadratic programming
+(Lange and Weeks, 1989).  Note that the variable EXTRA(1) should contain
+the total number of children over all pedigrees.  This along with the
+score vector is a necessary ingredient in the EM algorithm for
+estimating recombination fractions.  The variable EXTRA(2) is a
+multiplicative factor intended to increase the usual EM step.  Although
+the EM step moves in a good direction, it typically undershoots in this
+direction.  In the present example the EM step is simply doubled. 
+     The user program NEUTER.FOR can be substituted for USERM7 if you
+want to constrain female and male recombination fractions to be equal.  
+NEUTER runs faster than USERM7 because NEUTER employs half the number of 
+parameters.  Remember to halve the number of parameters in menu item 17.  
+For the EM algorithm to operate properly, you must also double the 
+constant EXTRA(1) in NEUTER to reflect the total number of gametes over 
+all pedigrees.
+     The data analyzed in this example are taken from Lewis et
+al.(1980).  Three separate problems are done.  The first two deal with a
+two point analysis of the chromosome 1 loci PGM1 and RADIN, while the
+third deals with one order for the three loci PGM1, RADIN, and RH.  A
+full analysis citing loglikelihoods for all three possible orders can be
+found in Lange et al.(1985).
+     Finally, we would like to stress the options in MENDEL for 
+consolidating alleles and computing in product mode.  These options were
+discussed earlier so here we simply remind users of their availability 
+for accelerating linkage calculations.  The variable LUMP is already set 
+to TRUE in USERM7.  To change to product mode, set the logical variable 
+PMODE to TRUE at the top of USERM7.  Do not use product mode if the 
+number of loci is small, or if Hardy-Weinberg or linkage equilibrium 
+fail, or if phenotypes stem from interactions among loci. 
+
+8. USERM8: Multipoint Mapping by Location Scores
+
+     In practice, the order and distances between markers in a given
+chromosome region may be well known.  When a new locus is introduced,
+often the most pressing problem is to order it with respect to the
+existing markers.  It would be computationally wasteful to consider any
+orders inconsistent with the known order of the existing markers.
+Lathrop et al.(1984) advocate this perspective and suggest that all
+recombination fractions be converted into map distances.  Thus, the map
+position of the new locus should be sought relative to the known map
+positions of the current markers.  This method also produces
+computational savings because only one map distance need be estimated
+rather than map distances for each of the adjacent intervals defined by
+the trait and existing markers.  Observe that by assuming sex
+independent recombination fractions and no chiasma interference it is
+easy to convert between recombination fractions and map distances via
+Haldane's formula and its inverse. 
+     USERM8 requires a set of extra constants to implement the location
+scores method.  The first entry of the extra array - menu item 8 -
+should contain the position of the new trait locus relative to the
+existing marker loci.  Thus, EXTRA(1)=2. indicates that the trait locus
+is the second locus from left to right in the whole collection of loci. 
+EXTRA(i), i=2 ,..,n-1, should be assigned the neuter recombination
+fractions between the n-1 existing markers taken from left to right. 
+     USERM8 converts these recombination fractions into map distances
+assuming no interference.  Each of the n possible orders can be tried to
+see which produces the maximum loglikelihood.  OUTM8.DAT shows the
+result of one possible order for the triple PGM1, RADIN, and RH, with
+RADIN as the trait locus and PGM1 and RH as the existing markers.
+Observe that the grid option is exercised first.  This is convenient for
+plotting a location score curve. 
+     By way of advice, we do not recommend location scores when the
+trait is typed on exactly the same set of pedigrees as the existing
+markers. This, in fact, is the case for the above data set.  Under the
+correct order, estimating all recombination fractions simultaneously
+should be more accurate than estimating all but one and then fixing
+these and estimating the final one.  However, if the order of the
+existing n-1 markers is almost certain, it is defensible to consider
+only the n orders consistent with their known order. 
+
+9. USERM9: Linkage Homogeneity
+
+     In certain cases it is prudent to check whether an apparently
+single locus trait is caused by two or more loci (Ott, 1991).  If there
+are multiple loci determining a rare trait, then it is likely that only
+one of the trait loci is linked to a given marker.  USERM9 is intended
+to test the hypothesis that a single linked trait locus can account for
+the inheritance pattern in all pedigrees.  All calculations are based on
+the supposition that a fraction of pedigrees show a linked form of the
+trait locus.  This fraction is the parameter LINKED in USERM9.  The
+hypothesis to be tested by the likelihood ratio criterion is that
+LINKED=1.  To express the likelihood correctly as a mixture of
+likelihoods for the linked and unlinked forms of the trait, the male and
+female recombination fractions are initialized by USERM9 to .5 and
+LINKED to the value 1.  The first loglikelihood for each pedigree is
+then recorded in the extra array of constants.  This means that EXTRA in
+the main routine of USERM9 must have at least as many entries as there
+are pedigrees in the pedigree file.  At each iteration the loglikelihood
+is adjusted using the information in the extra array.
+     To perform a likelihood ratio test, LINKED must be fixed at 1. by
+a linear constraint and the recombination fractions estimated again.
+Better yet, simply run USERM7 on the same data.  This is unnecessary in
+OUTM9.DAT because the loglikelihood maximizes when LINKED is at its
+upper bound.  Thus, in these families there is no evidence that the
+RADIN blood group exists in anything but a linked form.  In fact, the
+maximum likelihood estimates of the recombination fractions are
+precisely those between PGM1 and RADIN in OUTM7.DAT.  Finally, if you
+want to force female and male recombination fractions to be equal or use
+an X-linked marker, you must define a constraint in INITAL accordingly.
+
+10. USERM10: Linkage with Age Adjustment
+
+     USERM10 incorporates a simple age of onset modification of USERM7
+for the analysis of myotonic dystrophy (MYD) linkage data.  This
+dominant disease does not necessarily manifest itself at birth.  For
+other diseases the Fortran code in subroutine APEN needs adapting to fit
+their specific age of onset curves.  We have chosen to represent the MYD
+curve by the function F(age)=A*exp(-B*age-C*age**2). Do not take our
+eyeball fit too seriously.  The constants A, B, and C are stored in the
+extra array and displayed in menu item 8.  F(age) gives the probability
+that a heterozygote is still normal at the given age.  This probability
+diminishes with age.
+     The phenotypes displayed in the locus file for MYD are NORMAL,
+POSSIBLE, and AFFECTED.  If the normal allele is denoted by the symbol +
+and the disease allele by the symbol MYD, then the NORMAL phenotype
+corresponds to the genotype +/+, the POSSIBLE phenotype to +/+ and
++/MYD, and the AFFECTED phenotype to +/MYD.  We ignore the very rare
+genotype MYD/MYD.  The code in subroutine APEN requires that the MYD
+locus be the second locus listed in menu item 9.  Also, only those
+individuals with phenotype POSSIBLE should have a listed age.  APEN uses
+the absence of the age variable to distinguish AFFECTED individuals from
+POSSIBLE individuals for the genotype +/MYD.  Although individuals are
+labeled as NORMAL, POSSIBLE, and AFFECTED in the pedigree file, this
+information is used only to systematically eliminate genotypes for them
+and is otherwise not passed to subroutine APEN.  The output file
+contains an analysis of two pedigrees showing linkage between MYD and
+PEPD. These pedigrees are taken from O'Brien et al.(1983). 
+
+11. USERM11: Multiple Allele Segregation Analysis
+
+     When a new marker locus is being investigated, one of the first
+tasks is to check whether its proposed alleles and genotypes conform to
+the usual law of Mendelian segregation.  The typical way of doing this
+is to subdivide all nuclear families into different mating types and
+compute chi-square statistics covering the possible categories of
+offspring.  These chi-square statistics are then added over the various
+mating types to give a grand chi-square.  Besides being a little
+tedious, this classical procedure often produces component chi-square
+statistics lacking adequate numbers in their categories for large sample
+theory to apply legitimately.
+     USERM11 provides an alternative procedure which is more computer
+intensive but simpler to implement.  Each allele is assigned a
+segregation parameter.  Subroutine ATRANS supplies the transmission
+probabilities connecting parental genotypes and compatible gamete
+genotypes for their children.  The child's genotype is a union of two
+such gametes.  In USERM11's version of ATRANS a homozygous parental
+genotype i/i always produces a gamete of type i.  A heterozygous
+parental genotype i/j produces gamete of type i with probability
+pi/(pi+pj), where pi and pj are the segregation parameters for alleles i
+and j.  Under an hypothesis of Mendelian segregation, all of the pi
+values are equal.  We can arbitrarily constrain p1=1. and then test by a
+likelihood ratio statistic whether all pi=1.  In searching for the
+maximum likelihood estimates of the pi, USERM11 starts at the Mendelian
+values of 1.  This facilitates computing the likelihood ratio statistic
+by standardizing loglikelihoods.  Twice the final standardized
+loglikelihood should have an approximate chi-square distribution with
+n-1 degrees of freedom, where n is the number of alleles.  OUTM11.DAT
+contains an analysis of the PGM1 data from Lewis et al.(1980).  Please
+note that no ascertainment correction is either necessary or applied in
+this analysis. 
+
+12. USERM12: Segregation Analysis of a Quantitative Trait
+
+     This version of MENDEL provides an example of segregation analysis
+for a locus determining quantitative variation in cholesterol levels.  A
+large Alaskan pedigree is analyzed in which the classical familial
+hypercholesterolemia gene is segregating (Schrott et al.,1972).  This
+pedigree presents an ideal opportunity to illustrate the use of Elston
+and Stewart's(1971) generalization of segregation analysis.  The
+presence of a proband adds to the fun.
+     Five parameters are introduced for modeling the data.  Let allele 1
+be the abnormal allele and allele 2 the normal allele.  The mean of
+genotypes 1/1 and 1/2 is parameter 1.  Because the homozygous genotype
+1/1 is very rare, it has little real bearing on any analysis.  Parameter
+2 is the mean of the normal genotype 2/2.  Parameter 3 is the common
+standard deviation for these two means.  Parameter 4 is the probability
+that a affected parent 1/2 transmits the abnormal allele 1.  Under a
+Mendelian hypothesis this parameter should be .5.  To avoid introducing
+a parameter with little chance of being estimated, the transmission
+probability of the homozygous genotype 1/1 is fixed at 1.  Parameter 5
+is the probability that a normal parent 2/2 transmits allele 1.  This
+parameter should equal 0.  A sixth parameter is defined to insure that
+the dominant mean for genotypes 1/1 and 1/2 is greater than the
+recessive mean for genotype 2/2.  Bounds in MENDEL can only be defined
+on parameters;  therefore, implementation of general linear inequality
+constraints is accomplished by adding dummy parameters.
+     Ascertainment correction for this pedigree is done by conditioning
+on the proband.  The proband is duplicated in a second pedigree
+consisting of the proband alone.  The loglikelihood for the proband
+pedigree is then subtracted from the loglikelihood for the original
+pedigree.  In data consisting of more than one pedigree, the code in
+subroutine NEWLIK performing the ascertainment correction expects that
+the regular pedigrees and their corresponding dummy proband pedigrees
+alternate, with a regular pedigree listed first.
+     There is a subtle point about ascertainment missed in the present
+analysis.  When non-Mendelian transmission is possible because of
+non-standard values for the transmission probabilities, gene frequencies
+will change from generation to generation.  We have not taken this into
+account in computing genotype frequencies for the founders of the
+original pedigree or for the proband in the dummy pedigree.  Since our
+estimates of the transmission probabilities are close to their Mendelian
+values, we have neglected this subtlety without any apparent ill
+effects.  For traits less clearly Mendelian, you might want to compute
+gene frequencies appropriate to each generation.
+     It is absolutely essential in this example and most complicated
+examples to have good starting guesses for the parameters.  To achieve
+this for the first three parameters, we choose to ignore initially the
+pedigree connections between individuals and view them as constituting a
+random sample from a mixture of normal distributions.  When this
+assumption is made, the two means and common standard deviation can
+be easily estimated by the EM algorithm for mixtures of normals
+(Dempster, Laird, and Rubin, 1977).  The program MIXTURE.FOR carries out
+the EM algorithm on the log cholesterol values given in the data file
+MIXTURE.DAT.  The EM maximum likelihood estimates turn out to be quite
+good.  The two segregation parameters are started at their Mendelian
+values.  In addition reasonable bounds are imposed on all parameters to
+prevent the search from wandering too far afield.
+     In the first problem we confine the segregation parameters to their
+Mendelian values.  Notice how this is done in subroutine INITAL by
+defining two linear equality constraints.  In the second problem the
+segregation probabilities are estimated.  Comparison of the final
+maximum loglikelihoods for these two problems provides a likelihood
+ratio test of Mendelian segregation.  Not too surprisingly we find no
+evidence suggesting a departure from the Mendelian hypothesis. 
+
+13. USERM13: Allele Frequency Estimation on Pedigrees (Contributed by
+    Michael Boehnke)
+
+     USERM13 is designed to estimate allele frequencies for a single
+locus from a randomly ascertained sample of pedigrees.  A quantitative
+variable must be defined for each of these pedigrees to record how many
+pedigrees there are in the sample having the same structure and set of
+phenotypes.  This variable need only be defined on a single person of
+each pedigree; the entry in the same quantitative field for the other
+people of the pedigree can be left blank.  This data summarizing
+mechanism will be useful primarily if the data include both pedigrees
+and unrelated individuals;  it allows multiple unrelated individuals
+with the same phenotype to be represented by a single one-person
+pedigree.
+     Most of the other features of USERM13 parallel those in USERM1.
+One notable exception is that no overall goodness of fit test is given
+for Hardy-Weinberg equilibrium.  This is impossible for pedigrees since
+we do not view pedigree data as categorical.  Further discussion of the
+theoretical highlights of this example can be found in (Boehnke, 1991).
+
+14. USERM14: Identification of Marker Typing Incompatibilities
+    (Contributed by Heather Stringham and Michael Boehnke)
+
+     This version of MENDEL is designed to calculate the posterior
+probability of genotyping error for any/each person in a pedigree in which
+MENDEL has detected an inconsistency at a particular marker locus.  In some
+cases, particularly in moderate to large disease pedigrees and/or when 
+many individuals are not genotyped, the source of the inconsistency is
+not obvious from visual inspection and substantial time and effort are 
+required to identify the responsible genotype(s).  USERM14 provides two 
+methods for automatically identifying those individuals whose genotypes 
+are most likely the cause of the inconsistencies.  The first method 
+calculates the posterior probability of genotyping error for each member
+of the pedigree given the marker data on all pedigree members and allowing 
+anyone in the pedigree to have an error.  The second identifies those 
+individuals who could, by themselves, remove the inconsistency if only 
+their genotype were changed.  Maximum likelihood estimation of the 
+genotyping error rate e is also an option.
+     The pedigree file should be the usual MENDEL pedigree file with the
+second format record written to read person ID, parental IDs, sex, MZ twin
+status, phenotypes for all loci in the locus file, and a blank column in
+A5 format.  This format record must occupy a single line of the pedigree
+file.  The ID, sex, and twin status information must appear to the left of 
+the marker phenotypes of interest in the pedigree file.
+     USERM14 must be run in batch mode; the name of the batch file will be
+prompted for when the program is invoked.  The file BATCHM14.DAT is an
+example of a batch file.  Please note that it is important to have a blank
+line after the marker locus name in menu item 9 and after the array values
+in menu item 8.  Also, menu item 3 must appear before menu item 8 in the
+batch file.  The EXTRA array (menu item 8) should be filled as follows:
+EXTRA(1):  person number (position in the pedigree file, NOT the ID) of 
+           typed person in pedigree to do probablility calculations for;
+           for example, if calculation is desired for the tenth person
+           in the pedigree file, EXTRA(1)=10.
+           = 0. if calculations desired for all typed pedigree members
+EXTRA(2):  error rate e (initial value if estimating e)
+EXTRA(3):  = 0. to estimate e
+           = 1. to calculate posterior error probability given fixed typing
+                error probability e, allowing anyone to have an error
+           = 2. to identify individuals who could be solely responsible for
+                the inconsistency
+EXTRA(4):  = 0. to write results to the screen (in addition to output files)
+           = 1. to suppress output of results to the screen
+EXTRA(5):  column number of the first column of the pedigree file that 
+           stores the marker phenotype of interest
+EXTRA(6):  number of columns used to store this marker phenotype (width)
+EXTRA(7):  column number of the first column of the pedigree file that
+           stores the blank column that is read in with format A5
+Remember that each element of the EXTRA array must end in a decimal point.
+If calculations are desired for a number of people in a pedigree, but
+not all typed members, simply include each additional person as a separate
+problem in the batch file.  The entire EXTRA array need only be filled for
+the first problem; additional problems need only include EXTRA(1) followed 
+by a blank line.  Changes in other elements of the EXTRA array require a 
+separate batch file.     
+     USERM14 provides a second output file (name prompted for by the program)
+that provides results for either of the two methods in tabled format.  For 
+the first method (EXTRA(3)=1.), the table lists each person for whom a 
+calculation was requested and their posterior probabilities of typing error.  
+The error rate e under which the calculations were made is listed as a footer 
+in this table.  For example, running BATCHM14.DAT produces the following
+table:
+
+ Posterior Probabilities of Typing Error
+ __________________________
+
+ Person     P(Typing Error)
+ __________________________
+
+    5            0.019
+    7            0.016
+    8            0.995
+    9            0.072
+ __________________________
+
+ Error Rate =    0.035
+
+For the second method (EXTRA(3)=2.), each requested person is listed with an  
+'X' indicating which persons could be solely responsible for the error if
+only their genotype were changed.  For example:
+
+ Possible Sources of Typing Error
+ __________________________
+
+ Person     Possible Source
+ __________________________
+
+    5
+    7
+    8              X
+    9
+ __________________________
+
+Please note that the output in the usual MENDEL output file is meaningless
+for this second method and that, for either method, the pedigree file that
+is echoed to the output file is not the pedigree file from menu item 3 but
+an internally manipulated version of that file.
+     Much of the code for this version of MENDEL is involved with data and
+file manipulation so as to make the user interface as friendly as
+possible.  Subroutine APEN contains the bulk of the coding necessary for
+the appropriate probability calculations.  See (Stringham & Boehnke,
+1996) for theory and more detailed descriptions of the methods and examples.
+The current version of USERM14 is substantially faster than the one described 
+in the above reference.
+
+
+	  Pedigree Inconsistencies and Convergence Difficulties
+
+
+     MENDEL occasionally will note inconsistencies within a pedigree.
+When this occurs, the program proceeds to the next problem; it is your
+responsibility to correct the error.  If a particular locus is noted as
+the source of the inconsistency, then there is probably a nonpaternity
+or mistyping at or very near the person in the pedigree flagged by
+MENDEL.  Be sure to inspect surrounding family members because non-
+paternity can only be decided within the context of the whole pedigree.
+If a particular locus is not named as the source of the error, then
+usually there is no overt mistyping or non-paternity.  The difficulty
+is more likely to stem from parameter values that imply a likelihood of
+0.  Just before MENDEL stops it may print out final parameter values.
+If one of these parameters is a recombination fraction, check whether
+it is 0., but the pedigree shows recombinants.  Likewise, check whether
+any allele frequencies are 0.  In some problems a function supplied by
+the compiler will be evaluated as 0. when it should be positive.  This
+happens for instance with normal densities.  The remedy to such
+underflows is to properly bound parameters so that dangerous regions
+will not be reached during a search.  The values of the parameters
+output at each iteration are not necessarily a valid indication of
+all the points reached in parameter space by the search algorithm.
+If there are 1 or more steps during an iteration, only the final
+step is output.  So pay careful heed to the parameter values just
+before MENDEL crashes.  For other hints about dealing with convergence
+difficulties see the documentation of SEARCH.
+
+
+		  Timing Results for the Sample Problems
+
+     On a reasonably fast PC most of the problems run in well under a
+minute.  Some of the more challenging linkage and segregation analysis
+problems take a few minutes.  If you are impatient to see how fast a
+problem is progressing, add some print statements to subroutine OUTPUT
+so that the results of each iteration appear on your terminal.
+
+
+		  DICTIONARY OF VARIABLES PASSED BETWEEN
+		      THE SUBROUTINES OF MENDEL
+
+  Note: The logical variables ASYCV, ECHO, and STAND appear as
+	'YES' or 'NO' in the menu.
+
+  NAME     DEFINITION
+
+  ABSENT   MISSING VALUE CODE FOR QUANTITATIVE VARIABLES
+  ALLFRQ   ALLELE FREQUENCIES FOR THE LOCI IN THE CURRENT PROBLEM
+  ASYCV    SET TO TRUE FOR PARAMETER ASYMPTOTIC STANDARD ERRORS
+  BASE     BASE FOR LOGLIKELIHOODS; 'E' OR '10'
+  BATFIL   NAME OF THE BATCH FILE; LEAVE BLANK FOR INTERACTIVE MODE
+  CARRAY   PROVIDES SPACE FOR ALLOCATION OF PROGRAM CHARACTER VARIABLES
+  CNSTR    MATRIX OF COEFFICIENTS FOR PARAMETER LINEAR CONSTRAINTS
+  COND     NUMBER OF PEDIGREE TO CONDITION ON FOR COUNSELING PROBLEMS
+  CONV     CONVERGENCE CRITERION FOR DIFFERENCES BETWEEN SUCCESSIVE
+	   LOGLIKELIHOODS
+  CVALUE   VALUES FOR PARAMETER LINEAR CONSTRAINTS
+  DP       INTERVAL LENGTH FOR NUMERICAL DIFFERENTIATION
+  ECHO     SET TO TRUE TO ECHO LOCUS AND PEDIGREE FILES IN OUTPUT
+  EXTRA    ARRAY OF EXTRA CONSTANTS FOR CURRENT PROBLEM
+  FINAL    NUMBER OF THE FINAL ITERATION
+  FIRST    LOCUS POSITION IN MENU ITEM 9 OF THE FIRST LOCUS PRESENTED IN
+	   ROUTINES APEN, APRIOR, AND ATRANS
+  GAMETE   COMBINATION OF ALLELES DEFINING A GAMETE.  FOR EXAMPLE,
+	   GAMETE(1)=2 AND GAMETE(2)=5 INDICATE THE SECOND ALLELE AT THE
+	   FIRST LOCUS AND THE FIFTH ALLELE AT THE SECOND LOCUS OF THE
+	   CURRENT PROBLEM.
+  GENES    COMBINATIONS OF GAMETES DEFINING EACH MULTIPLE LOCUS GENOTYPE
+	   OF A PERSON.  SEE CONVENTIONS UNDER DEFINITION OF GAMETE.
+  GRID     COMBINATIONS OF PARAMETERS FOR WHICH THE LOGLIKELIHOOD IS
+	   TO BE EVALUATED IN 'GRID' OPTION
+  IARRAY   PROVIDES SPACE FOR ALLOCATION OF PROGRAM INTEGER VARIABLES
+  ITER     NUMBER OF THE CURRENT ITERATION
+  LARRAY   PROVIDES SPACE FOR ALLOCATION OF PROGRAM LOGICAL VARIABLES
+  LAST     LOCUS POSITION IN MENU ITEM 9 OF THE LAST LOCUS PRESENTED IN
+	   ROUTINES APEN, APRIOR, AND ATRANS
+  LENC     NUMBER OF ENTRIES IN CARRAY
+  LENI     NUMBER OF ENTRIES IN IARRAY
+  LENL     NUMBER OF ENTRIES IN LARRAY
+  LENR     NUMBER OF ENTRIES IN RARRAY
+  LNAME    NAMES OF THE LOCI APPEARING IN MENU ITEM 9; THESE DEFINE THE
+	   LOCI IN THE CURRENT PROBLEM
+  LOCFIL   NAME OF THE LOCUS FILE
+  LOGLIK   LOGLIKELIHOOD OF THE CURRENT PEDIGREE IN SUBROUTINE NEWLIK.
+	   SUM OF THE LOGLIKELIHOODS OVER ALL PEDIGREES IN SUBROUTINE
+	   OUTPUT.  THE BASE FOR THESE LOGLIKELIHOODS IS 'E'.
+  LUMP     SET TO TRUE FOR ALLELE AMALGAMATION AT EACH LOCUS
+  MALE     TRUE WHEN THE CURRENT PERSON IS A MALE IN SUBROUTINES APRIOR
+	   AND APEN
+  MALEI    TRUE WHEN THE CURRENT PARENT IS A MALE IN SUBROUTINE ATRANS
+  MALEJ    TRUE WHEN THE CURRENT CHILD IS A MALE IN SUBROUTINE ATRANS
+  MAXALL   MAXIMUM NUMBER OF ALLELES AT ANY LOCUS IN THE CURRENT PROBLEM
+  MAXPAR   MAXIMUM OF 1 AND THE NUMBER OF PARAMETERS
+  MUTLOC   NAME OF THE MUTATING LOCUS IN A PROBLEM
+  MUTATE   POSITION OF THE MUTATING LOCUS AMONG ALL LOCI IN THE CURRENT
+	   PROBLEM
+  MXITER   MAXIMUM NUMBER OF ITERATIONS ALLOWED IN A SEARCH
+  MXLOCI   MAXIMUM NUMBER OF LOCI ALLOWED IN A PROBLEM
+  MXSTEP   MAXIMUM NUMBER OF STEP DECREMENTS PER ITERATION IN A SEARCH
+  MXTWIN   MAXIMUM NUMBER OF MZTWIN SETS ALLOWED PER PEDIGREE
+  NCNSTR   NUMBER OF LINEAR CONSTRAINTS IN THE CURRENT PROBLEM
+  NCONV    NUMBER OF TIMES THE CONVERGENCE CRITERION MUST BE SATISFIED
+	   TO STOP A SEARCH
+  NEXTRA   NUMBER OF ENTRIES IN EXTRA
+  NGTYPE   NUMBER OF MULTIPLE LOCUS GENOTYPES FOR THE CURRENT PERSON
+	   IN SUBROUTINES APEN AND APRIOR OR FOR THE PARENT IN
+	   SUBROUTINE ATRANS
+  NLOCI    NUMBER OF LOCI IN THE CURRENT PROBLEM
+  NPAR     NUMBER OF PARAMETERS IN THE CURRENT PROBLEM
+  NPED     NUMBER OF PEDIGREES IN THE PEDIGREE FILE
+  NPOINT   NUMBER OF POINTS IN PARAMETER SPACE DEFINING A GRID
+  NSTEP    NUMBER OF STEP DECREMENTS FOR THE CURRENT SEARCH ITERATION
+  NVAR     NUMBER OF QUANTITATIVE VARIABLES PER PERSON
+  ORDERD   SET TO TRUE FOR ORDERED GENOTYPES ON INPUT
+  OUTFIL   NAME OF THE OUTPUT FILE
+  PAR      VECTOR OF PARAMETERS
+  PARMAX   VECTOR OF PARAMETER UPPER BOUNDS
+  PARMIN   VECTOR OF PARAMETER LOWER BOUNDS
+  PED      NUMBER OF THE CURRENT PEDIGREE
+  PEDFIL   NAME OF THE PEDIGREE FILE
+  PEN      VECTOR OF PENETRANCE FUNCTION VALUES IN SUBROUTINE APEN
+  PER      NUMBER OF THE CURRENT PERSON IN SUBROUTINES APEN AND APRIOR
+  PERI     NUMBER OF THE PARENT IN SUBROUTINE ATRANS
+  PERJ     NUMBER OF THE CHILD IN SUBROUTINE ATRANS
+  PMODE    SET TO TRUE FOR PRODUCT MODE CALCULATION OF THE LIKELIHOOD
+  PNAME    VECTOR OF PARAMETER NAMES
+  PRIOR    VECTOR OF PRIOR PROBABILITIES FOR FOUNDER GENOTYPES IN
+	   SUBROUTINE APRIOR
+  PROBLM   NUMBER OF THE CURRENT PROBLEM
+  RARRAY   PROVIDES SPACE FOR ALLOCATION OF PROGRAM DOUBLE PRECISION
+	   VARIABLES
+  SCORE    VECTOR OF PARTIAL DERIVATIVES OF THE LOGLIKELIHOOD
+  STAND    SET TO TRUE TO STANDARDIZE LOGLIKELIHOODS BY THE
+	   LOGLIKELIHOOD AT THE FIRST ITERATION
+  TITLE    TITLE FOR THE CURRENT PROBLEM
+  TRANS    VECTOR OF TRANSMISSION PROBABILITIES IN SUBROUTINE ATRANS
+  TRAVEL   SET TO 'SEARCH' FOR OPTIMIZATION OF THE LOGLIKELIHOOD WITH
+	   RESPECT TO THE PARAMETERS.  OTHERWISE SET TO 'GRID' AND
+	   DEFINE A GRID OF PARAMETER POINTS IN SUBROUTINE 'INITAL'.
+  UMOVE    SET TO TRUE IN SUBROUTINE OUTPUT TO OVERRIDE THE USUAL
+	   GRID OR SEARCH OPTION
+  UNIT3    UNIT NUMBER FOR THE OUTPUT FILE
+  VAR      VECTOR OF QUANTITATIVE VARIABLES FOR THE CURRENT PERSON IN
+	   SUBROUTINES APRIOR AND APEN
+  VARI     VECTOR OF QUANTITATIVE VARIABLES FOR THE CURRENT PARENT IN
+	   SUBROUTINE ATRANS
+  VARJ     VECTOR OF QUANTITATIVE VARIABLES FOR THE CURRENT CHILD IN
+	   SUBROUTINE ATRANS
+  XLINK    XLINK(I) IS TRUE WHEN THE ITH LOCUS OF THE CURRENT PROBLEM
+	   IS X-LINKED
+  XXRATE   FEMALE MUTATION RATE
+  XXSIGN   FEMALE SEX SYMBOL IN THE PEDIGREE FILE
+  XYRATE   MALE MUTATION RATE
+  XYSIGN   MALE SEX SYMBOL IN THE PEDIGREE FILE
+
+
+	TYPE, CLASS, DIMENSIONS, AND MENU NUMBER FOR THE VARIABLES
+
+  NAME     TYPE              CLASS        DIMENSIONS      MENU ITEM
+
+  ABSENT   DOUBLE PRECISION  SCALAR
+  ALLFRQ   DOUBLE PRECISION  2D ARRAY     NLOCI,MAXALL
+  ASYCV    LOGICAL           SCALAR                       19
+  BASE     CHARACTER*8       SCALAR                       13
+  BATFIL   CHARACTER*8       SCALAR
+  CARRAY   CHARACTER*8       1D ARRAY     LENC
+  CNSTR    DOUBLE PRECISION  2D ARRAY     NCNSTR,NPAR
+  COND     INTEGER           SCALAR                       12
+  CONV     DOUBLE PRECISION  SCALAR
+  CVALUE   DOUBLE PRECISION  1D ARRAY     NCNSTR
+  DP       DOUBLE PRECISION  SCALAR
+  ECHO     LOGICAL           SCALAR                       5
+  EXTRA    DOUBLE PRECISION  1D ARRAY     NEXTRA          8
+  FINAL    INTEGER           SCALAR
+  FIRST    INTEGER           SCALAR
+  GAMETE   INTEGER           1D ARRAY     NLOCI
+  GENES    INTEGER           3D ARRAY     NLOCI,2,NGTYPE
+  GRID     DOUBLE PRECISION  2D ARRAY     NPOINT,NPAR
+  IARRAY   INTEGER           1D ARRAY     LENI
+  ITER     INTEGER           SCALAR
+  LARRAY   LOGICAL           1D ARRAY     LENL
+  LAST     INTEGER           SCALAR
+  LENC     INTEGER           SCALAR
+  LENI     INTEGER           SCALAR
+  LENL     INTEGER           SCALAR
+  LENR     INTEGER           SCALAR
+  LNAME    CHARACTER*8       1D ARRAY     MXLOCI          9
+  LOCFIL   CHARACTER*40      SCALAR                       2
+  LOGLIK   DOUBLE PRECISION  SCALAR
+  LUMP     LOGICAL           SCALAR
+  MALE     LOGICAL           SCALAR
+  MALEI    LOGICAL           SCALAR
+  MALEJ    LOGICAL           SCALAR
+  MAXALL   INTEGER           SCALAR
+  MAXPAR   INTEGER           SCALAR
+  MUTLOC   CHARACTER*8       SCALAR                       10
+  MUTATE   INTEGER           SCALAR
+  MXITER   INTEGER           SCALAR                       20
+  MXLOCI   INTEGER           SCALAR
+  MXSTEP   INTEGER           SCALAR
+  MXTWIN   INTEGER           SCALAR
+  NCNSTR   INTEGER           SCALAR                       18
+  NCONV    INTEGER           SCALAR
+  NEXTRA   INTEGER           SCALAR
+  NGTYPE   INTEGER           SCALAR
+  NLOCI    INTEGER           SCALAR
+  NPAR     INTEGER           SCALAR                       17
+  NPED     INTEGER           SCALAR
+  NPOINT   INTEGER           SCALAR                       16
+  NSTEP    INTEGER           SCALAR
+  NVAR     INTEGER           SCALAR                       7
+  ORDERD   LOGICAL           SCALAR
+  OUTFIL   CHARACTER*40      SCALAR                       4
+  PAR      DOUBLE PRECISION  1D ARRAY     NPAR
+  PARMAX   DOUBLE PRECISION  1D ARRAY     NPAR
+  PARMIN   DOUBLE PRECISION  1D ARRAY     NPAR
+  PED      INTEGER           SCALAR
+  PEDFIL   CHARACTER*40      SCALAR                       3
+  PEN      DOUBLE PRECISION  1D ARRAY     NGTYPE
+  PER      INTEGER           SCALAR
+  PERI     INTEGER           SCALAR
+  PERJ     INTEGER           SCALAR
+  PMODE    LOGICAL           SCALAR
+  PNAME    CHARACTER*8       1D ARRAY     NPAR
+  PRIOR    DOUBLE PRECISION  1D ARRAY     NGTYPE
+  PROBLM   INTEGER           SCALAR                       0
+  RARRAY   DOUBLE PRECISION  1D ARRAY     LENR
+  SCORE    DOUBLE PRECISION  1D ARRAY     MAXPAR
+  STAND    LOGICAL           SCALAR                       14
+  TITLE    CHARACTER*40      SCALAR                       1
+  TRANS    DOUBLE PRECISION  1D ARRAY     NGTYPE
+  TRAVEL   CHARACTER*8       SCALAR                       15
+  UMOVE    LOGICAL           SCALAR
+  UNIT3    INTEGER           SCALAR
+  VAR      DOUBLE PRECISION  1D ARRAY     NVAR
+  VARI     DOUBLE PRECISION  1D ARRAY     NVAR
+  VARJ     DOUBLE PRECISION  1D ARRAY     NVAR
+  XLINK    LOGICAL           1D ARRAY     NLOCI
+  XXRATE   DOUBLE PRECISION  SCALAR                       11
+  XXSIGN   CHARACTER*8       SCALAR                       6
+  XYRATE   DOUBLE PRECISION  SCALAR                       11
+  XYSIGN   CHARACTER*8       SCALAR                       6
+
+
+			   References
+
+  Boehnke M: Allele frequency estimation from pedigree data.  Amer. J.
+  Hum. Genet. 48:22-25, 1991
+
+  Botstein D, White RL, Skolnick M, Davis RW:  Construction of a genetic
+  linkage map in man using restriction fragment polymorphisms.  Amer. J.
+  Hum. Genet. 32:314-331, 1980
+
+  Cavalli-Sforza LL, Bodmer WF:  The Genetics of Human Populations.  San
+  Francisco, WH Freeman, 1971
+
+  Conneally PM, Rivas ML:  Linkage analysis in man.  Advances in Human
+  Genetics 10:209-266, 1980
+
+  Crow JF, Kimura, M:  An Introduction to Population Genetics Theory.
+  New York, Harper and Row, 1970
+
+  Dempster, AP, Laird, NM, and Rubin DB:  Maximum likelihood estimation
+  from incomplete data via the EM algorithm (with Discussion).  J. R.
+  Stat. Soc. B,39:1-38, 1977
+
+  Elandt-Johnson RC:  Probability Models and Statistical Methods in
+  Genetics.  New York, Wiley, 1971
+
+  Elston, RC:  The estimation of admixture in racial hybrids.  Ann. Hum.
+  Genet. 35:9-17, 1971
+
+  Elston, RC:  Segregation analysis.  Advances in Human Genetics 11:
+  63-120, 1981
+
+  Elston RC, Stewart J:  A general model for the genetic analysis of
+  pedigree data.  Hum. Hered. 21:523-542, 1971
+
+  Goradia TM, Lange K, Miller PL, Nadkarni PM: Fast computation of
+  genetic likelihoods on human pedigree data.  Hum. Hered. 42:42-62, 
+  1992
+
+  Lander ES, Green P:  Construction of multilocus genetic linkage maps
+  in humans.  Proc. Nat. Acad. USA 84:2363-2367, 1987
+
+  Lange, K:  Approximate confidence intervals for risk prediction in
+  genetic counseling.  Amer. J. Hum. Genet. 38:681-687, 1985
+
+  Lange K, Boehnke M:  Extensions to pedigree analysis.  V.  Optimal
+  calculation of Mendelian likelihoods.  Hum. Hered. 33:291-301, 1983
+
+  Lange K, Elston RC:  Extensions to pedigree analysis. I. Likelihood
+  calculations for simple and complex pedigrees.  Hum. Hered. 25:
+  95-105, 1975
+
+  Lange K, Goradia TM:  An algorithm for automatic genotype elimination.
+  Amer. J. Hum. Genet. 40:250-256, 1987
+
+  Lange K, Kunkel L, Aldridge J, Latt SA:  Accurate and superaccurate
+  gene mapping.  Amer. J. Hum. Genet. 37:853-867, 1985
+
+  Lange K, Weeks DE: Efficient computation of lod scores: genotype
+  elimination, genotype redefinition, and hybrid maximum likelihood
+  algorithms.  Ann. Hum. Genet. 53, 67-83, 1989
+
+  Lathrop GM, Lalouel JM, Julier C, Ott J:  Strategies for multilocus
+  linkage analysis in humans.  Proc. Nat. Acad. Sci.(USA) 81:3443-
+  3446, 1984
+
+  Lewis M, Kaita H, Philipps S, Giblet ER, Anderson JE, McAlpine PJ,
+  Nickel B:  The position of the Radin blood group in relation to other
+  chromosome 1 loci.  Ann. Hum. Genet. 44:179-184, 1980
+
+  Monaco AP, Bertelson CJ, Middlesworth W, Colletti CA, Aldridge J,
+  Fishbeck KH, Bartlett R, Pericak-Vance MA, Roses AD, Kunkel LM:
+  Detection of deletions spanning the Duchenne muscular dystrophy locus
+  using a tightly linked DNA segment.  Nature 316:842-845, 1985
+
+  Morton NE, Rao DC, Lalouel JM:  Methods in Genetic Epidemiology.  New
+  York, Karger, 1983
+
+  Murphy EA, Chase GA:  Principles of Genetic Counseling.  Chicago, Year
+  Book Medical Publishers, 1975
+
+  O'Brien T, Ball S, Sarfarazi M, Harper PS, Robson EB:  Genetic linkage
+  between the loci for myotonic dystrophy and peptidase D.  Ann. Hum.
+  Genet. 47:117-121, 1983
+
+  Ott J: Counting methods (EM algorithm) in human pedigree analysis:
+  Linkage and segregation analysis.  Ann. Hum. Genet. 40:443-454, 1977
+
+  Ott J:  Analysis of Human Genetic Linkage, Revised Ed.  Baltimore, Johns 
+  Hopkins Univ. Press, 1991
+
+  Rao CR:  Linear Statistical Inference and its Applications, 2nd Ed.
+  New York, Wiley, 1973
+
+  Roberts DF, Hiorns RW:  Methods of analysis of the genetic composition
+  of a hybrid population.  Hum. Biol. 37:38-43, 1965
+
+  Schrott HG, Goldstein JL, Hazzard WR, McGoodwin MM, Motulsky AG:
+  Familial hypercholesterolemia in a large kindred:  Evidence for a
+  monogenic mechanism.  Ann. Int. Med. 76:711-720, 1972
+
+  Stringham HM, Boehnke M: Identifying marker typing incompatibilities in
+  linkage analysis.  Am. J. Hum. Genet. 59:946-950, 1996 
+
+  Thompson EA:  Pedigree Analysis in Human Genetics.  Baltimore, Johns
+  Hopkins University Press, 1986
+
+  White R:  The search for the cystic fibrosis gene.  Science 234:1054-
+  1055, 1986

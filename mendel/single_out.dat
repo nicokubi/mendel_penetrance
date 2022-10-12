@@ -1,0 +1,67 @@
+
+ TOTALS:  PEDIGREES   PEOPLE  FEMALES    MALES  MZTWINS FOUNDERS
+                 2       15       10        5        0        6
+ 
+  0 PROBLEM NUMBER                     1                                      
+  1 TITLE                              TP53_data                              
+  2 LOCUS FILE                         locusbr.dat                            
+  3 PEDIGREE FILE                      pedigree.txt                           
+  4 OUTPUT FILE                        single_out.dat                         
+  5 ECHO LOCUS AND PEDIGREE FILES      NO                                     
+  6 FEMALE AND MALE SYMBOLS            F       M                              
+  7 NUMBER OF QUANTITATIVE VARIABLES   7                                      
+  8 EXTRA CONSTANTS FOR PROBLEM        0.0     0.0     0.0     0.0     0.0    
+  9 NAMES OF LOCI IN PROBLEM           MAJOR                                  
+ 10 NAME OF MUTABLE LOCUS IN PROBLEM                                          
+ 12 PEDIGREE TO CONDITION ON           2                                      
+ 13 BASE FOR LOGLIKELIHOODS            E                                      
+ 14 STANDARDIZE LOGLIKELIHOODS         NO                                     
+ 15 GRID OR SEARCH OPTION              SEARCH                                 
+ 17 NUMBER OF PARAMETERS               1                                      
+ 18 NUMBER OF CONSTRAINTS              0                                      
+ 19 ASYMPTOTIC STANDARD ERRORS         YES                                    
+ 20 MAXIMUM NUMBER OF ITERATIONS       100                                    
+
+ PARAMETER MINIMA AND MAXIMA:
+
+    RR      
+
+  0.0000D+00
+
+  0.3000D+01
+
+ ITER  NSTEP  LOGLIKELIHOOD    RR      
+
+   1     0   -0.1954816D+02  0.5000D+00
+
+   2     0   -0.1849793D+02  0.1595D+01
+
+   3     1   -0.1823315D+02  0.2212D+01
+
+   4     0   -0.1823087D+02  0.2294D+01
+
+   5     0   -0.1823058D+02  0.2273D+01
+
+   6     0   -0.1823057D+02  0.2274D+01
+
+   7     0   -0.1823057D+02  0.2274D+01
+
+   8     0   -0.1823057D+02  0.2274D+01
+
+   9     0   -0.1823057D+02  0.2274D+01
+
+  10     3   -0.1823057D+02  0.2274D+01
+
+ THE MAXIMUM LOGLIKELIHOOD OCCURS AT ITERATION   9.
+
+ ASYMPTOTIC STANDARD ERRORS OF THE PARAMETERS:
+
+    RR      
+
+  0.8488D+00
+
+ ASYMPTOTIC CORRELATION MATRIX OF THE PARAMETERS:
+
+    RR      
+
+  0.1000D+01
