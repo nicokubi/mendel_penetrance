@@ -1,7 +1,6 @@
 C  Program for computing breast cancer penetrance using family data.
 C  TP53 data for  Clare Turnbull.
 C  This version assumes  fixed background incidences independent of birth cohort.
-C  Breast Cancer incidences for England and Wales
 
 
       PARAMETER(LENC=100,LENI=100000,LENL=100,LENR=1000000,MXLOCI=10
@@ -64,6 +63,7 @@ C
 
       double precision   popbr(0:79)
 
+C BP: population incidence, for breast cancer
       common /popincid/popbr
 
 
@@ -79,7 +79,9 @@ C-----------------------------------------------------------------------
 
 
       par(1)=0.5d0
+C BP: Lower bound for RR during search
       parmin(1) =  0.0d0
+C BP: Upper bound for RR during search
       parmax(1) =  15.0d0
 
 
