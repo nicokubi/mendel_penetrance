@@ -35,7 +35,7 @@ C
 C     THE ARRAYS AND VARIABLES BEGIN A LONG DESCENT INTO THE
 C     PROGRAM.  SAY GOODBYE TO THEM AND WISH THEM LUCK.
 C
-      write(*,*) "CALL MENDEL with", EXTRA
+CB      write(*,*) "CALL MENDEL with", EXTRA
       CALL MENDEL(EXTRA,RARRAY,IARRAY,CARRAY,LNAME,LARRAY,ABSENT
      :,CONV,DP,XXRATE,XYRATE,COND,LENC,LENI,LENL,LENR,MXITER,MXLOCI
      :,MXSTEP,MXTWIN,NCNSTR,NCONV,NEXTRA,NPAR,NPOINT,NVAR,BASE,BATFIL
@@ -197,6 +197,7 @@ C     IN A PEDIGREE.  THE CURRENT VERSION IS VALID ONLY FOR SIMPLE
 C     EITHER/OR TRAITS.
 C
 
+
       IMPLICIT NONE
 
       double precision absent
@@ -206,6 +207,7 @@ C
       integer          ngtype
       integer          nloci
       integer          npar
+CB:  nvar is the number of quantitative variables
       integer          nvar
       integer          ped, per
       logical          male
@@ -255,6 +257,10 @@ c Define the disease status, idis(=0 if unaffected, =1 if BC)
 c Define the censoring variable in the data. If icens=1 then the individual
 c is censored at birth.
 c---------------------------------------------------------------------
+       write(*,*) "APEN called for pedigree", PED, " person ", PER
+C PEN,"-",VAR,"A",GENES,"B",XLINK,ABSENT
+C     1,XYRATE,FIRST,LAST,MUTATE,NEXTRA,NGTYPE,NLOCI,NPAR,NVAR,PED
+C     2,PER,MALE,like
 
        agebc  = var(1)
        agebc2 = var(2)
@@ -546,7 +552,7 @@ c=====================================================================
 
       endif
 
-c	write(*,*) ped, per, age, pen(i)
+	write(*,*) ped, per, age, pen(i)
 
 10    continue
       return
