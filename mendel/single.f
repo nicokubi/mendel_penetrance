@@ -35,6 +35,7 @@ C
 C     THE ARRAYS AND VARIABLES BEGIN A LONG DESCENT INTO THE
 C     PROGRAM.  SAY GOODBYE TO THEM AND WISH THEM LUCK.
 C
+      write(*,*) "CALL MENDEL with", EXTRA
       CALL MENDEL(EXTRA,RARRAY,IARRAY,CARRAY,LNAME,LARRAY,ABSENT
      :,CONV,DP,XXRATE,XYRATE,COND,LENC,LENI,LENL,LENR,MXITER,MXLOCI
      :,MXSTEP,MXTWIN,NCNSTR,NCONV,NEXTRA,NPAR,NPOINT,NVAR,BASE,BATFIL
@@ -174,8 +175,11 @@ C     THAN .5.
 
 c Ascertainment part should follow as the second half of the predigrees:
 
-      if(ped.gt.nped/2) loglik=-loglik
+C      https://github.com/ictr/mendel_penetrance/issues/2#issuecomment-1306108800
 
+C      if(ped.gt.nped/2) loglik=-loglik
+
+CB    write(*,*) "NEWLIK CALLED with LOGLIK=", LOGLIK
 
       END
 
