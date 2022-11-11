@@ -257,7 +257,8 @@ c Define the disease status, idis(=0 if unaffected, =1 if BC)
 c Define the censoring variable in the data. If icens=1 then the individual
 c is censored at birth.
 c---------------------------------------------------------------------
-       write(*,*) "APEN called for pedigree", PED, " person ", PER
+       write(*,*) "AP per=", PER, "NGTYPE=", NGTYPE, "GENES=", GENES
+
 C PEN,"-",VAR,"A",GENES,"B",XLINK,ABSENT
 C     1,XYRATE,FIRST,LAST,MUTATE,NEXTRA,NGTYPE,NLOCI,NPAR,NVAR,PED
 C     2,PER,MALE,like
@@ -277,6 +278,7 @@ c By default everyone censored at 0, unless age information is available:
        age = 0
        idis=0
 
+CB: use agedeath or agelfu as ageother is ageother is MISSING (999)
 	if (ageother.eq. 999) then
 	 	if(agelfu.gt.0 .and. agedeath.gt.0) then
 			ageother=min(agelfu,agedeath)
@@ -289,7 +291,7 @@ c By default everyone censored at 0, unless age information is available:
 		endif
 	endif
 
-
+CB: use agedeath or agelfu as agebc is agebc is MISSING (999)
 	if (agebc.eq. 999) then
 	 	if(agelfu.gt.0 .and. agedeath.gt.0) then
 			agebc=min(agelfu,agedeath)
@@ -302,6 +304,7 @@ c By default everyone censored at 0, unless age information is available:
 		endif
 	endif
 
+CB: use agedeath or agelfu as ageoc is ageoc is MISSING (999)
 	if (ageoc.eq. 999) then
 	 	if(agelfu.gt.0 .and. agedeath.gt.0) then
 			ageoc=min(agelfu,agedeath)
@@ -338,13 +341,13 @@ C Censor at the first cancer.
 		age=min(agelfu, agedeath)
 	endif
 
-	if (age.eq.agebc .and. agebc.gt.0) idis=1
-
+      if (age.eq.agebc .and. agebc.gt.0) idis=1
+      write(*,*) 'per=', PER, 'age=', age, 'idis=', idis
 c	write(*,*) agebc,ageoc,ageother,agelfu,agedeath,age,idis
 
 
 c---------------------------------------------------------------------
-c Censor at age 80
+c Censor at age 80 is treated as NO disease
 c---------------------------------------------------------------------
 
        if(age.ge.80) then
@@ -359,6 +362,7 @@ c relative risks. In the fixed incidence version, no Rel Risk applies
 c to non-carriers.
 c---------------------------------------------------------------------
 
+CB: rrbr: is the relative risk for breat cancer??
        do i=0,79
           if(i.lt.20) then
             rrbr(i) = 1.0d0
@@ -469,10 +473,12 @@ c---------------------------------------------------------------------
 
       DO 10 I=1,NGTYPE
 
+
        if(genes(1,1,I).eq.1.and.genes(1,2,I).eq.1) then
         is=1
        else
         is=2
+        WRITE(*,*) "PER", PER, "NGTYPE=", NGTYPE, "CARRIER I=", I
        endif
 
 
