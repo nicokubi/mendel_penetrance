@@ -30,7 +30,7 @@ The output is in `single_out.dat`.
 
 ### References
 
-https://pubmed.ncbi.nlm.nih.gov/12677558/
-https://pubmed.ncbi.nlm.nih.gov/18349832/
-https://pubmed.ncbi.nlm.nih.gov/25099575/
-https://pubmed.ncbi.nlm.nih.gov/31841383/
+* [AJHG 2003, Average risks of breast and ovarian cancer associated with BRCA1 or BRCA2 mutations](https://pubmed.ncbi.nlm.nih.gov/12677558/)
+* [Br J Cancer, 2008, The BOADICEA model of genetic susceptibility to breast and ovarian cancers](https://pubmed.ncbi.nlm.nih.gov/18349832/)
+* [NEJM, 2014, Breast-cancer risk in families with mutations in PALB2](https://pubmed.ncbi.nlm.nih.gov/25099575/)
+* [J Clin Onco, 2020, Cancer Risks Associated With Germline PALB2 Pathogenic Variants](https://pubmed.ncbi.nlm.nih.gov/31841383/)
