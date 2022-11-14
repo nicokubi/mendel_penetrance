@@ -257,7 +257,7 @@ c Define the disease status, idis(=0 if unaffected, =1 if BC)
 c Define the censoring variable in the data. If icens=1 then the individual
 c is censored at birth.
 c---------------------------------------------------------------------
-       write(*,*) "AP per=", PER, "NGTYPE=", NGTYPE, "GENES=", GENES
+      write(*,*) "AP per=", PER, "NGTYPE=", NGTYPE, "PAR=", PAR
 
 C PEN,"-",VAR,"A",GENES,"B",XLINK,ABSENT
 C     1,XYRATE,FIRST,LAST,MUTATE,NEXTRA,NGTYPE,NLOCI,NPAR,NVAR,PED
@@ -342,7 +342,7 @@ C Censor at the first cancer.
 	endif
 
       if (age.eq.agebc .and. agebc.gt.0) idis=1
-      write(*,*) 'per=', PER, 'age=', age, 'idis=', idis
+C      write(*,*) 'per=', PER, 'age=', age, 'idis=', idis
 c	write(*,*) agebc,ageoc,ageother,agelfu,agedeath,age,idis
 
 
@@ -478,7 +478,7 @@ c---------------------------------------------------------------------
         is=1
        else
         is=2
-        WRITE(*,*) "PER", PER, "NGTYPE=", NGTYPE, "CARRIER I=", I
+C        WRITE(*,*) "PER", PER, "NGTYPE=", NGTYPE, "CARRIER I=", I
        endif
 
 
@@ -558,7 +558,7 @@ c=====================================================================
 
       endif
 
-	write(*,*) ped, per, age, pen(i)
+C	write(*,*) ped, per, age, pen(i)
 
 10    continue
       return

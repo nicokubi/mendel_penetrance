@@ -9,7 +9,7 @@
   4 OUTPUT FILE                        single_out.dat                         
   5 ECHO LOCUS AND PEDIGREE FILES      NO                                     
   6 FEMALE AND MALE SYMBOLS            F       M                              
-  7 NUMBER OF QUANTITATIVE VARIABLES   2                                      
+  7 NUMBER OF QUANTITATIVE VARIABLES   7                                      
   8 EXTRA CONSTANTS FOR PROBLEM        0.0     0.0     0.0     0.0     0.0    
   9 NAMES OF LOCI IN PROBLEM           MAJOR                                  
  10 NAME OF MUTABLE LOCUS IN PROBLEM                                          
@@ -28,33 +28,37 @@
 
   0.0000D+00
 
-  0.5000D+01
+  0.1500D+02
 
  ITER  NSTEP  LOGLIKELIHOOD    RR      
 
-   1     0   -0.1385111D+02  0.5000D+00
+   1     0   -0.4493400D+02  0.5000D+00
 
-   2     0   -0.1379796D+02  0.7281D+00
+   2     0   -0.4061151D+02  0.3490D+01
 
-   3     0   -0.1359584D+02  0.1910D+01
+   3     0   -0.4029768D+02  0.2515D+01
 
-   4     1   -0.1359582D+02  0.1917D+01
+   4     0   -0.4014026D+02  0.2883D+01
 
-   5     0   -0.1359582D+02  0.1917D+01
+   5     0   -0.4013995D+02  0.2867D+01
 
-   6     0   -0.1359582D+02  0.1917D+01
+   6     0   -0.4013995D+02  0.2867D+01
 
-   7     0   -0.1359582D+02  0.1917D+01
+   7     1   -0.4013995D+02  0.2867D+01
 
-   8     0   -0.1359582D+02  0.1917D+01
+   8     0   -0.4013995D+02  0.2867D+01
 
- THE MAXIMUM LOGLIKELIHOOD OCCURS AT ITERATION   8.
+   9     0   -0.4013995D+02  0.2867D+01
+
+  10     0   -0.4013995D+02  0.2867D+01
+
+ THE MAXIMUM LOGLIKELIHOOD OCCURS AT ITERATION  10.
 
  ASYMPTOTIC STANDARD ERRORS OF THE PARAMETERS:
 
     RR      
 
-  0.1403D+01
+  0.6223D+00
 
  ASYMPTOTIC CORRELATION MATRIX OF THE PARAMETERS:
 
