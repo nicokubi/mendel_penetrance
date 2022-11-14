@@ -26,3 +26,11 @@ gfortran -O3 mendela.f single.f -o single
 and choose `NO`, `21`, and `no`
 
 The output is in `single_out.dat`.
+
+
+### References
+
+https://pubmed.ncbi.nlm.nih.gov/12677558/
+https://pubmed.ncbi.nlm.nih.gov/18349832/
+https://pubmed.ncbi.nlm.nih.gov/25099575/
+https://pubmed.ncbi.nlm.nih.gov/31841383/
