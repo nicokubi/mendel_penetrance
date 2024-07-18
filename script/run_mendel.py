@@ -776,8 +776,8 @@ if __name__ == '__main__':
     parser.add_argument('--travel', default='SEARCH', choices=['SEARCH', 'GRID'], help='''Search method''')
     parser.add_argument('--mxiter', default=500, type=int, help='''Max iterations''')
     parser.add_argument('--parinit', default=0.5, help='''Initial value for parameter''')
-    parser.add_argument('--parmin', default=0, help='''Minimal value for parameter''')
-    parser.add_argument('--parmax', default=5, help='''Max parameter''')
+    parser.add_argument('--parmin', default=-10, help='''Minimal value for parameter''')
+    parser.add_argument('--parmax', default=10, help='''Max parameter''')
     parser.add_argument(
         '--cancer-type',
         required=True,
