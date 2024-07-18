@@ -468,7 +468,7 @@ def bootstrap_run_mendel(idx, data_dir, **kwargs):
         raise ValueError(f'Non existing data dir {data_dir}')
 
     # n_age_groups = len(age_cutoffs) - 1
-    max_age = kwargs['age_cutoffs'][-1]
+    max_age = 90
     np.random.seed(idx)
 
     while True:
