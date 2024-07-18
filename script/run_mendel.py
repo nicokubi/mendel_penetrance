@@ -4,7 +4,6 @@ import os
 import subprocess
 from dataclasses import asdict, dataclass
 from pprint import pprint
-import tempfile
 import shutil
 import multiprocessing
 from functools import partial
@@ -17,11 +16,17 @@ import pandas as pd
 import pexpect
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from joblib import Memory
+import sys
 
-bin_dir = '/home/bpeng/ictr/LFS-TP53/mendel/dist/mendel/Examples_of_using_mendel'
-data_root_dir = '/home/bpeng/ictr/LFS-TP53/analysis/mendel'
-template_file = '/home/bpeng/ictr/LFS-TP53/mendel/dist/mendel/Examples_of_using_mendel/single_template.f'
-cache_dir = '/home/bpeng/ictr/LFS-TP53/analysis'
+if sys.version_info[0] != 3 or sys.version_info[1] < 10:
+    sys.exit('Python 3.10 or higher is required.')
+
+my_dir = os.path.split(os.path.abspath(__file__))[0]
+
+bin_dir = f'{my_dir}/../mendel/'
+data_root_dir = f'{my_dir}/../data'
+template_file = f'{bin_dir}/single_template.f'
+cache_dir = './cache'
 
 memory = Memory(cache_dir, verbose=0)
 
@@ -121,8 +126,8 @@ class TemplateArgs:
     def __post_init__(self) -> int:
         self.npar = len(self.age_cutoffs) - (0 if self.rr_model == 'linear' else 1)
         self.maxage = self.age_cutoffs[-1]
-        assert self.maxage == 90, f'specifed {self.age_cutoffs=}'
-        assert self.age_cutoffs[0] == 0, f'specifed {self.age_cutoffs=}'
+        assert self.maxage == 90, f'Last element of age_cutoff {self.age_cutoffs=} shold be 90'
+        assert self.age_cutoffs[0] == 0, f'First element of age_cutoff {self.age_cutoffs=} should be 0'
 
 
 def write_def_file(ped_name, ped_data):
@@ -384,7 +389,7 @@ def generate_source_code(template_args):
 
 
 @memory.cache
-def run_mendel(data_dir, keep_results=False, **kwargs):
+def run_mendel(data_dir, keep_results=True, **kwargs):
     #
     bootstrap_pedigrees = kwargs.pop('bootstrap_pedigrees', False)
     template_args = TemplateArgs(**kwargs)
@@ -778,15 +783,15 @@ if __name__ == '__main__':
         required=True,
         choices=['leukemia', 'colorectal', 'breast', 'brain', 'lfs'],
         help='''Cancer type''')
-    parser.add_argument(
+    action = parser.add_mutually_exclusive_group(required=True)
+    action.add_argument(
         '--age-cutoffs',
         type=int,
         nargs='+',
-        required=True,
         help='''Cutoff values, the first value should be zero. The last value
             should be is the maximum age, and patients with age greater
             than the range will be censored.''')
-    parser.add_argument(
+    action.add_argument(
         '--bootstrap',
         type=int,
         help='''If set to True, will bootstrap the cutoff ages. The first and last
@@ -796,10 +801,10 @@ if __name__ == '__main__':
     parser.add_argument('--label', help='Comment for the analysis.')
     args = parser.parse_args()
 
-    if args.age_cutoffs is not None:
+    if args.age_cutoffs is None:
         res = bootstrap_mendel(
             args.data_dir,
-            TRAVEL=args.travel,
+            travel=args.travel,
             mxiter=args.mxiter,
             parmin=args.parmin,
             parmax=args.parmax,
@@ -812,7 +817,7 @@ if __name__ == '__main__':
     else:
         res = run_mendel(
             args.data_dir,
-            TRAVEL=args.travel,
+            travel=args.travel,
             mxiter=args.mxiter,
             parmin=args.parmin,
             parmax=args.parmax,
